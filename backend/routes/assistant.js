@@ -173,7 +173,7 @@ ${JSON.stringify(storeContext.products.map(p=>({id:p.id,name:p.name,price:p.pric
 اختار بس المنتجات اللي فعلاً تساعد في حل المشكلة، حد أقصى ٤ منتجات. لو مفيش، رجّع productIds فاضي.`;
 
   const res = await axios.post(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
     {
       system_instruction: { parts: [{ text: systemInstruction }] },
       contents: [{ role: 'user', parts: [{ text: userMessage }] }],
