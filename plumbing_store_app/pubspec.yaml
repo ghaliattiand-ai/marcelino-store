@@ -1,0 +1,67 @@
+name: plumbing_store_app
+description: A new Flutter project.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.6
+  provider: ^6.1.1
+  shared_preferences: ^2.5.3
+  http: ^1.2.0
+  connectivity_plus: ^6.1.5
+
+  # الحزم الأساسية المستخدمة في المشروع
+  flutter_bloc: ^8.1.6
+  equatable: ^2.0.8
+  dio: ^5.9.2
+  intl: ^0.19.0
+  flutter_rating_bar: ^4.0.1
+  cached_network_image: ^3.4.1
+  shimmer: ^3.0.0
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  dartz: ^0.10.1
+  url_launcher: ^6.3.1
+  google_fonts: ^6.2.1
+  page_transition: ^2.1.0
+  flutter_animate: ^4.5.0
+  image_picker: ^1.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.14.3
+  flutter_native_splash: ^2.4.0
+
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/app_icon.png"
+  
+  # ده اللي ناقص عندك ← مهم جداً لـ Android الجديد
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "assets/images/app_icon.png"
+  
+  # لو عايز background صورة مش لون
+  # adaptive_icon_background: "assets/images/app_icon_bg.png"
+flutter_native_splash:
+  color: "#1B2A4A"                        # نفس لون خلفية splash بتاعتك
+  image: assets/images/logo.png           # اللوجو
+  color_dark: "#1B2A4A"
+  image_dark: assets/images/logo.png
+  android_12:
+    color: "#1B2A4A"
+    image: assets/images/logo.png
