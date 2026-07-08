@@ -9,6 +9,7 @@ const Coupon = require('../models/Coupon');
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/marcelino_store';
 
+// نصدّر الدالة عشان نقدر نستدعيها من مسار داخل السيرفر (زرع عن بعد لو القاعدة بتعاند من جهازك)
 const seedData = async () => {
   try {
     console.log('🔌 جاري الاتصال بـ MongoDB...');
@@ -287,11 +288,19 @@ const seedData = async () => {
     console.log('  👤 Customer 1: phone=01012345678, password=123456');
     console.log('  👤 Customer 2: phone=01123456789, password=123456');
 
-    process.exit(0);
+    console.log('\n✨ تم زرع كل البيانات بنجاح');
   } catch (error) {
     console.error('❌ خطأ في seed:', error);
-    process.exit(1);
+    throw error;
   }
 };
 
-seedData();
+// نصدّر الدالة للاستخدام من داخل السيرفر
+module.exports = { seedData };
+
+// لو شغلنا السكريبت مباشرة (npm run seed) نشغّل الدالة ونغلق العملية
+if (require.main === module) {
+  seedData()
+    .then(() => process.exit(0))
+    .catch(() => process.exit(1));
+}
