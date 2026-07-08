@@ -160,20 +160,26 @@ async function callOpenAI(userMessage, storeContext) {
 async function callGemini(userMessage, storeContext) {
   const systemInstruction = `أنت مساعد ذكي لمتجر اسمه "${storeContext.storeName}" (${storeContext.storeDescription}).
 ردّ بالعربي المصري/الفصحى بسيطة (3-4 جمل).
-لو فيه منتجات تناسب المشكلة، رد JSON بالشكل ده بالظبط:
-{"message": "نص الرد", "productIds": ["id1", "id2"]}
-لو مفيش منتجات مناسبة، رد: {"message": "نص الرد", "productIds": []}
+مهم: لازم تردّ دايماً بصيغة JSON صحيحة فقط بدون أي نص إضافي قبلها أو بعدها.
+الصيغة المطلوبة بالظبط:
+{"message": "نص الرد للعميل بالعربي", "productIds": ["id1", "id2"]}
 
-المنتجات المتاحة (id, name, price, category): ${JSON.stringify(storeContext.products.map(p=>({id:p.id,name:p.name,price:p.price,category:p.category})))}`;
+لو مفيش منتجات مناسبة، رد:
+{"message": "نص الرد", "productIds": []}
+
+اليك قائمة المنتجات المتاحة في المتجر (استعمل الـ id فقط في productIds):
+${JSON.stringify(storeContext.products.map(p=>({id:p.id,name:p.name,price:p.price,category:p.category})))}
+
+اختار بس المنتجات اللي فعلاً تساعد في حل المشكلة، حد أقصى ٤ منتجات. لو مفيش، رجّع productIds فاضي.`;
 
   const res = await axios.post(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`,
     {
       system_instruction: { parts: [{ text: systemInstruction }] },
       contents: [{ role: 'user', parts: [{ text: userMessage }] }],
-      generationConfig: { temperature: 0.5, maxOutputTokens: 400 },
+      generationConfig: { temperature: 0.4, maxOutputTokens: 1024, responseMimeType: 'application/json' },
     },
-    { timeout: 15000 }
+    { timeout: 20000 }
   );
   const content = res.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
   // الموديلات بترجع JSON أحياناً متغطاة بـ ```json ... ``` أو فيها علامات شرط زايدة.
