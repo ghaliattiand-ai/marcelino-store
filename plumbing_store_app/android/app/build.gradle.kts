@@ -34,7 +34,7 @@ android {
 
     defaultConfig {
         applicationId = "com.marcelino.store"
-        minSdk = 23   // Android 6.0+ — أوسع شريحة من المستخدمين
+        minSdk = flutter.minSdkVersion   // Android 6.0+ — أوسع شريحة من المستخدمين
         targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName

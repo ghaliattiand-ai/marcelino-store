@@ -167,7 +167,7 @@ async function callGemini(userMessage, storeContext) {
 المنتجات المتاحة (id, name, price, category): ${JSON.stringify(storeContext.products.map(p=>({id:p.id,name:p.name,price:p.price,category:p.category})))}`;
 
   const res = await axios.post(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`,
     {
       system_instruction: { parts: [{ text: systemInstruction }] },
       contents: [{ role: 'user', parts: [{ text: userMessage }] }],
