@@ -55,22 +55,6 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/assistant', require('./routes/assistant'));
 
-// مسار مؤقت لزرع البيانات الأولية عن بُعد — محمي بمفتاح في متغير SEED_KEY
-// مفيد لو جهازك ما يقدرش يوصل قاعدة الأطلس بسبب DNS. يفضل حذفه بعد أول استعمال.
-app.get('/api/seed', async (req, res) => {
-  const key = req.query.key;
-  if (!process.env.SEED_KEY || key !== process.env.SEED_KEY) {
-    return res.status(403).json({ message: 'غير مصرح' });
-  }
-  try {
-    const { seedData } = require('./seed/seed');
-    await seedData();
-    res.json({ message: 'تم زرع كل البيانات بنجاح' });
-  } catch (e) {
-    res.status(500).json({ message: 'خطأ في الزرع: ' + e.message });
-  }
-});
-
 // Route رئيسي للتأكد إن السيرفر شغال
 app.get('/', (req, res) => {
   res.json({
