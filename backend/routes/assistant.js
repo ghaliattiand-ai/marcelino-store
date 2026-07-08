@@ -176,11 +176,36 @@ async function callGemini(userMessage, storeContext) {
     { timeout: 15000 }
   );
   const content = res.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-  try {
-    return JSON.parse(content);
-  } catch (_) {
-    return { message: content, productIds: [] };
+  // الموديلات بترجع JSON أحياناً متغطاة بـ ```json ... ``` أو فيها علامات شرط زايدة.
+  // نطهّر الرد ونحاول نلقط الجزء اللي بين أول { وآخر }
+  function safeParse(text) {
+    let t = String(text).trim();
+    // نشيل أكواد markdown لو موجودة
+    t = t.replace(/```json/gi, '').replace(/```/g, '').trim();
+    // نلقط أول { لآخر }
+    const first = t.indexOf('{');
+    const last = t.lastIndexOf('}');
+    if (first !== -1 && last !== -1 && last > first) {
+      t = t.slice(first, last + 1);
+    }
+    try {
+      return JSON.parse(t);
+    } catch (_) {
+      // لو فيه علامات تنصيص زايدة (escaped)، نشيلها ونجرب تاني
+      try {
+        const cleaned = t.replace(/\\"/g, '"').replace(/\\n/g, ' ');
+        return JSON.parse(cleaned);
+      } catch (_) {
+        return null;
+      }
+    }
   }
+  const parsed = safeParse(content);
+  if (parsed && (parsed.message || parsed.productIds)) {
+    return parsed;
+  }
+  // لو مفيش JSON مفهوم، نرجّع النص كرسالة عادية
+  return { message: content.replace(/[{}[\]"]/g, '').trim() || 'أهلاً بك', productIds: [] };
 }
 
 // استدعاء DeepSeek
