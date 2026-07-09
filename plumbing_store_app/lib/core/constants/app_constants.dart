@@ -17,7 +17,7 @@ class AppConstants {
   static const String _prodBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
 
   // قيمة افتراضية مخصصة للمحاكي الرسمي (Android Emulator → localhost	host)
-  static const String _defaultBaseUrl = 'http://10.0.2.2:5000/api';
+ static const String _defaultBaseUrl = 'https://marcelino-api.onrender.com/api';
 
   // مفاتيح SharedPreferences
   static const String tokenKey = 'auth_token';
