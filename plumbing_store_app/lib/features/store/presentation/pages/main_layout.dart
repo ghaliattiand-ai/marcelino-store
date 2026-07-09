@@ -34,8 +34,8 @@ class _MainLayoutState extends State<MainLayout> {
   ];
 
   /// يفتح الـ Drawer الجانبي (يُستدعى من HomePage)
-  void openDrawer() {
-    _scaffoldKey.currentState?.openEndDrawer();
+ void openDrawer() {
+    _scaffoldKey.currentState?.openDrawer();
   }
 
   late final List<Widget> _screens;
@@ -63,7 +63,7 @@ class _MainLayoutState extends State<MainLayout> {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         key: _scaffoldKey,
-        endDrawer: _buildAppDrawer(context, nav),
+        drawer: _buildAppDrawer(context, nav),
         body: IndexedStack(
           index: currentIndex,
           children: [

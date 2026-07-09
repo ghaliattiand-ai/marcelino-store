@@ -57,11 +57,3 @@ flutter_launcher_icons:
   
   # لو عايز background صورة مش لون
   # adaptive_icon_background: "assets/images/app_icon_bg.png"
-flutter_native_splash:
-  color: "#1B2A4A"                        # نفس لون خلفية splash بتاعتك
-  image: assets/images/logo.png           # اللوجو
-  color_dark: "#1B2A4A"
-  image_dark: assets/images/logo.png
-  android_12:
-    color: "#1B2A4A"
-    image: assets/images/logo.png

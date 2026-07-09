@@ -82,14 +82,9 @@ class AppConstants {
 
   /// كشف المنصة لاختيار العنوان الأنسب تلقائياً
   static String detectBestBaseUrl() {
-    // الأولوية القصوى: عنوان الإنتاج المحقون عبر --dart-define
-    if (_prodBaseUrl.isNotEmpty) return _prodBaseUrl;
-    if (kIsWeb) return 'http://localhost:5000/api';
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:5000/api';
-    }
-    return 'http://localhost:5000/api';
-  }
+  if (_prodBaseUrl.isNotEmpty) return _prodBaseUrl;
+  return _defaultBaseUrl;
+}
 
   /// يرجّع أصل الـ API (origin) بدون `/api` — لاستخدامه في إكمال روابط الصور النسبية
   /// مثل `/uploads/products/x.jpg` → `<origin>/uploads/products/x.jpg`.
