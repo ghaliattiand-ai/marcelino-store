@@ -284,7 +284,7 @@ const seedData = async () => {
 
     console.log('\n🎉 تم بنجاح! البيانات جاهزة');
     console.log('\n📋 بيانات الدخول:');
-    console.log('  👑 Admin: phone=01000000000, password=admin123');
+    console.log('  👑 Admin: phone=01110140517, password=sameh123');
     console.log('  👤 Customer 1: phone=01012345678, password=123456');
     console.log('  👤 Customer 2: phone=01123456789, password=123456');
 
