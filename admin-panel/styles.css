@@ -94,6 +94,7 @@ body {
   color: white;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;   /* ← ضيف السطر ده */
   padding: 20px 0;
   position: fixed;
   height: 100vh;
