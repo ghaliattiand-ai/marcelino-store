@@ -134,6 +134,63 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // ─────────────────────────────────────────
+  // ✅ جديد ─ التحقق من كود SMS لإنشاء حساب (بدون signIn للـ backend)
+  // نتحقق بس إن الكود صحيح ونعمل signIn Firebase مؤقتاً عشان نأكد إن الرقم متحرّك
+  // لكن ما نبعتش للـ backend دلّيني. بعدها العميل يكمّل بياناته ونعمل register.
+  // ─────────────────────────────────────────
+  String? _verifiedPhoneForRegister; // الرقم المتحقَّق منه في session التسجيل
+
+  /// التحقق من كود SMS لإنشاء حساب جديد (بدون تسجيل دخول للـ backend)
+  Future<bool> verifyOtpForRegister(String smsCode) async {
+    if (_verificationId == null) {
+      _errorMessage = 'لازم تبعت الكود الأول';
+      notifyListeners();
+      return false;
+    }
+
+    _isLoading    = true;
+    _errorMessage  = null;
+    notifyListeners();
+
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: _verificationId!,
+        smsCode:        smsCode,
+      );
+      // نعمل signIn مؤقت Firebase عشان نتأكد إن الكود صحيح (وavailibleالرقم verified)
+      // بعدها هنعمل signOut Firebase مباشرة عشان ما يفضلش logged-in على Firebase بدون حساب backend
+      final userCred = await _firebaseAuth.signInWithCredential(credential);
+      // الرقم اللي تم تحقّقه من Firebase
+      _verifiedPhoneForRegister = userCred.user?.phoneNumber;
+      // نعمل signOut Firebase مؤقت (الحساب على backend لسه ما اتعملش)
+      await _firebaseAuth.signOut();
+
+      _isLoading    = false;
+      _codeSent     = false;
+      notifyListeners();
+      return true;
+    } on FirebaseAuthException catch (e) {
+      _errorMessage = e.message ?? 'الكود غلط أو انتهت صلاحيته';
+      _isLoading    = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// الرقم المتحقَّق منه في session التسجيل (null لو لسه ما تحقّقش)
+  String? get verifiedPhoneForRegister => _verifiedPhoneForRegister;
+
+  /// إلغاء session التسجيل (لو العميل رجع أو قفل الصفحة)
+  void cancelRegistration() {
+    _verifiedPhoneForRegister = null;
+    _verificationId           = null;
+    _resendToken               = null;
+    _codeSent                  = false;
+    _errorMessage              = null;
+    notifyListeners();
+  }
+
+  // ─────────────────────────────────────────
   // ✅ جديد ─ Helper: Firebase Sign-in → Backend Token
   // ─────────────────────────────────────────
   Future<bool> _signInWithCredential(PhoneAuthCredential credential) async {
