@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:plumbing_store_app/core/providers/auth_provider.dart';
 import 'package:plumbing_store_app/core/providers/cart_provider.dart';
 import 'package:plumbing_store_app/core/providers/navigation_provider.dart';
+import 'package:plumbing_store_app/core/providers/settings_provider.dart';
 import 'package:plumbing_store_app/core/theme/app_theme.dart';
 import 'home_page.dart';
 import 'categories_page.dart';
@@ -10,8 +12,18 @@ import 'cart_page.dart';
 import 'orders_page.dart';
 import 'profile_page.dart';
 
-class MainLayout extends StatelessWidget {
+const _navyD = Color(0xFF0D1B3E);
+const _navyL = Color(0xFF152040);
+
+class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
+
+  @override
+  State<MainLayout> createState() => _MainLayoutState();
+}
+
+class _MainLayoutState extends State<MainLayout> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   static const _screenLabels = [
     'الرئيسية',
@@ -22,14 +34,25 @@ class MainLayout extends StatelessWidget {
     'الملف الشخصي',
   ];
 
-  static const _screens = <Widget>[
-    HomePage(),
-    CategoriesPage(),
-    AssistantPage(),
-    CartPage(),
-    OrdersPage(),
-    ProfilePage(),
-  ];
+  /// يفتح الـ Drawer الجانبي (يُستدعى من HomePage)
+  void openDrawer() {
+    _scaffoldKey.currentState?.openEndDrawer();
+  }
+
+  late final List<Widget> _screens;
+
+  @override
+  void initState() {
+    super.initState();
+    _screens = <Widget>[
+      HomePage(onOpenDrawer: openDrawer),
+      CategoriesPage(),
+      AssistantPage(),
+      CartPage(),
+      OrdersPage(),
+      ProfilePage(),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,12 +60,11 @@ class MainLayout extends StatelessWidget {
     final currentIndex = nav.currentIndex;
     final t = AppTheme.of(context);
 
-    // نلفّ كل tab بـ TickerMode معطّل ما لم يكن هو الظاهر — هذا يوقف
-    // كل الأنميشنز والـ animation controllers في الـ tabs غير الظاهرة
-    // (مثل typing dots في tab المساعد) ويوفّر البطارية والـ CPU.
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
+        key: _scaffoldKey,
+        endDrawer: _buildAppDrawer(context, nav),
         body: IndexedStack(
           index: currentIndex,
           children: [
@@ -184,5 +206,158 @@ class MainLayout extends StatelessWidget {
       default:
         return selected ? Icons.person : Icons.person_outline;
     }
+  }
+
+  // ===== Drawer (القائمة الجانبية) =====
+  Widget _buildAppDrawer(BuildContext context, NavigationProvider nav) {
+    final auth = context.watch<AuthProvider>();
+    final settings = context.watch<SettingsProvider>();
+    final t = AppTheme.of(context);
+    final isLoggedIn = auth.isLoggedIn;
+    final userName = auth.name ?? 'زائر';
+    final userPhone = auth.phone ?? 'تسجيل الدخول';
+    final isDark = settings.isDarkMode;
+
+    void closeDrawer() {
+      Navigator.of(context).maybePop();
+    }
+
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Drawer(
+        child: Container(
+          color: t.background,
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              // رأس القائمة
+              Container(
+                padding: EdgeInsets.only(
+                  top: MediaQuery.of(context).padding.top + 20,
+                  left: 20,
+                  right: 20,
+                  bottom: 20,
+                ),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [_navyD, _navyL],
+                    begin: Alignment.topRight,
+                    end: Alignment.bottomLeft,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundColor: Colors.white.withValues(alpha: 0.15),
+                      child: Icon(
+                        isLoggedIn ? Icons.person : Icons.person_outline,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      userName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      userPhone,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // روابط التنقل
+              _drawerItem(context, icon: Icons.home_outlined, label: 'الرئيسية', onTap: () { nav.goToTab(0); closeDrawer(); }),
+              _drawerItem(context, icon: Icons.grid_view_outlined, label: 'الأقسام', onTap: () { nav.goToTab(1); closeDrawer(); }),
+              _drawerItem(context, icon: Icons.smart_toy_outlined, label: 'المساعد الذكي', onTap: () { nav.goToTab(2); closeDrawer(); }),
+              _drawerItem(context, icon: Icons.shopping_cart_outlined, label: 'سلة التسوق', onTap: () { nav.goToTab(3); closeDrawer(); }),
+              _drawerItem(context, icon: Icons.receipt_long_outlined, label: 'طلباتي', onTap: () { nav.goToTab(4); closeDrawer(); }),
+              _drawerItem(context, icon: Icons.person_outline, label: 'الملف الشخصي', onTap: () { nav.goToTab(5); closeDrawer(); }),
+
+              const Divider(height: 32),
+
+              // الوضع الليلي
+              ListTile(
+                leading: Icon(
+                  isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                  color: AppTheme.navy,
+                ),
+                title: Text(
+                  isDark ? 'الوضع النهاري' : 'الوضع الليلي',
+                  style: TextStyle(color: t.textPrimary, fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+                trailing: Switch(
+                  value: isDark,
+                  activeColor: AppTheme.orange,
+                  onChanged: (v) => settings.toggleDarkMode(),
+                ),
+              ),
+
+              const Divider(height: 16),
+
+              // خروج / تسجيل دخول
+              _drawerItem(
+                context,
+                icon: isLoggedIn ? Icons.logout_outlined : Icons.login_outlined,
+                label: isLoggedIn ? 'تسجيل الخروج' : 'تسجيل الدخول',
+                color: isLoggedIn ? AppTheme.error : AppTheme.navy,
+                onTap: () {
+                  closeDrawer();
+                  if (isLoggedIn) {
+                    auth.logout();
+                  } else {
+                    nav.goToTab(5);
+                  }
+                },
+              ),
+
+              const SizedBox(height: 20),
+
+              // معلومات التطبيق
+              Center(
+                child: Column(
+                  children: [
+                    Text('MARCELINO', style: TextStyle(color: t.textMuted, fontWeight: FontWeight.bold, fontSize: 16)),
+                    const SizedBox(height: 4),
+                    Text('الإصدار 1.0.0', style: TextStyle(color: t.textMuted, fontSize: 11)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _drawerItem(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color? color,
+  }) {
+    final t = AppTheme.of(context);
+    return ListTile(
+      leading: Icon(icon, color: color ?? AppTheme.navy),
+      title: Text(
+        label,
+        style: TextStyle(color: color ?? t.textPrimary, fontSize: 14, fontWeight: FontWeight.w500),
+      ),
+      onTap: onTap,
+    );
   }
 }

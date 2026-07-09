@@ -21,7 +21,8 @@ const _bg = Color(0xFFF2F3F7);
 
 class HomePage extends StatefulWidget {
   final String? initialCategoryId;
-  const HomePage({super.key, this.initialCategoryId});
+  final VoidCallback? onOpenDrawer;
+  const HomePage({super.key, this.initialCategoryId, this.onOpenDrawer});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -196,7 +197,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       toolbarHeight: 58,
       leading: _BouncyTap(
         scaleFactor: 0.80,
-        onTap: () {},
+        onTap: () {
+          if (widget.onOpenDrawer != null) {
+            widget.onOpenDrawer!();
+          } else {
+            Scaffold.of(context).openEndDrawer();
+          }
+        },
         child: const Padding(
           padding: EdgeInsets.all(8),
           child: Icon(Icons.menu, color: Colors.white, size: 26),

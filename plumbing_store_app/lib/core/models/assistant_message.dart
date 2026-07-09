@@ -17,6 +17,32 @@ class AssistantMessage {
     required this.timestamp,
     this.products = const [],
   });
+
+  /// تحويل الرسالة لـ JSON عشان نقدر نخزنها في SharedPreferences
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'text': text,
+        'sender': sender == MessageSender.user ? 'user' : 'assistant',
+        'timestamp': timestamp.toIso8601String(),
+        'products': products.map((p) => p.toJson()).toList(),
+      };
+
+  /// إعادة بناء الرسالة من JSON (من SharedPreferences)
+  factory AssistantMessage.fromJson(Map<String, dynamic> j) {
+    return AssistantMessage(
+      id: j['id'] as String? ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      text: j['text'] as String? ?? '',
+      sender: (j['sender'] as String?) == 'user'
+          ? MessageSender.user
+          : MessageSender.assistant,
+      timestamp: j['timestamp'] != null
+          ? DateTime.tryParse(j['timestamp'] as String) ?? DateTime.now()
+          : DateTime.now(),
+      products: ((j['products'] as List?) ?? const [])
+          .map((p) => AssistantProduct.fromJson(p as Map<String, dynamic>))
+          .toList(),
+    );
+  }
 }
 
 // نسخة مبسطة من المنتج للعرض جوه الدردشة
@@ -59,4 +85,15 @@ class AssistantProduct {
       icon: j['icon'] as String? ?? 'inventory_2',
     );
   }
+
+  /// تخزين المنتج في JSON
+  Map<String, dynamic> toJson() => {
+        '_id': id,
+        'nameAr': name,
+        'description': description,
+        'price': price,
+        if (imageUrl != null)
+          'images': [imageUrl],
+        'icon': icon,
+      };
 }

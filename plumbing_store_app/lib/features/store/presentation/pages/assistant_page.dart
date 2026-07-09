@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:plumbing_store_app/core/models/assistant_message.dart';
 import 'package:plumbing_store_app/core/data/assistant_service.dart';
 import 'package:plumbing_store_app/core/data/store_api_service.dart';
@@ -11,6 +13,7 @@ import '../../../../core/widgets/page_transitions.dart';
 const _navy = Color(0xFF0D1B3E);
 const _orange = Color(0xFFFF6B00);
 const _bg = Color(0xFFF2F3F7);
+const _chatStorageKey = 'assistant_chat_messages';
 
 /// صفحة المساعد الذكي - chat UI مع عرض المنتجات المقترحة inline
 class AssistantPage extends StatefulWidget {
@@ -29,13 +32,57 @@ class _AssistantPageState extends State<AssistantPage> with TickerProviderStateM
   @override
   void initState() {
     super.initState();
-    // رسالة ترحيب
-    _messages.add(AssistantMessage(
-      id: 'welcome',
-      text: 'أهلاً! 🤖 أنا مساعد MARCELINO الذكي. اشرحلي المشكلة اللى عندك وأنا هقترحلك المنتجات المناسبة من المتجر. \n\nمثلاً:\n• "الحنفية بتقطّر مية"\n• "محتاج بويا للحيط"\n• "الصرف ممسود"\n• "محتاج دريل للحفر"',
-      sender: MessageSender.assistant,
-      timestamp: DateTime.now(),
-    ));
+    // نحمّل المحادثات المحفوظة أولاً؛ لو مفيش، نظيف رسالة الترحيب
+    _loadMessages();
+  }
+
+  /// تحميل المحادثات المحفوظة من جهاز المستخدم
+  Future<void> _loadMessages() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getString(_chatStorageKey);
+      if (stored != null && stored.isNotEmpty) {
+        final list = jsonDecode(stored) as List<dynamic>;
+        final messages = list
+            .map((m) => AssistantMessage.fromJson(m as Map<String, dynamic>))
+            .toList();
+        if (messages.isNotEmpty && mounted) {
+          setState(() {
+            _messages
+              ..clear()
+              ..addAll(messages);
+          });
+          _scrollToBottom();
+          return;
+        }
+      }
+    } catch (_) {
+      // لو في خطأ في القراءة، نكمل برسالة الترحيب
+    }
+    // لو مفيش محادثات محفوظة، نظيف رسالة الترحيب
+    if (mounted && _messages.isEmpty) {
+      setState(() {
+        _messages.add(AssistantMessage(
+          id: 'welcome',
+          text: 'أهلاً! 🤖 أنا مساعد MARCELINO الذكي. اشرحلي المشكلة اللى عندك وأنا هقترحلك المنتجات المناسبة من المتجر. \n\nمثلاً:\n• "الحنفية بتقطّر مية"\n• "محتاج بويا للحيط"\n• "الصرف ممسود"\n• "محتاج دريل للحفر"',
+          sender: MessageSender.assistant,
+          timestamp: DateTime.now(),
+        ));
+      });
+    }
+  }
+
+  /// حفظ المحادثات الحالية على جهاز المستخدم
+  Future<void> _saveMessages() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final encoded = jsonEncode(
+        _messages.where((m) => m.id != 'welcome').map((m) => m.toJson()).toList(),
+      );
+      await prefs.setString(_chatStorageKey, encoded);
+    } catch (_) {
+      // نتجاهل أخطاء الحفظ علشان ما نوقفش الشات
+    }
   }
 
   @override
@@ -72,6 +119,7 @@ class _AssistantPageState extends State<AssistantPage> with TickerProviderStateM
       _isTyping = true;
       _controller.clear();
     });
+    _saveMessages();
     _scrollToBottom();
 
     // نطلب رد المساعد
@@ -92,6 +140,7 @@ class _AssistantPageState extends State<AssistantPage> with TickerProviderStateM
         ));
         _isTyping = false;
       });
+      _saveMessages();
       _scrollToBottom();
     } catch (e) {
       setState(() {
@@ -103,6 +152,7 @@ class _AssistantPageState extends State<AssistantPage> with TickerProviderStateM
         ));
         _isTyping = false;
       });
+      _saveMessages();
       _scrollToBottom();
     }
   }
@@ -170,6 +220,7 @@ class _AssistantPageState extends State<AssistantPage> with TickerProviderStateM
                   setState(() {
                     _messages.removeRange(1, _messages.length);
                   });
+                  _saveMessages(); // نحفظ الحالة الجديدة (فاضية)
                 },
                 tooltip: 'محادثة جديدة',
               ),
