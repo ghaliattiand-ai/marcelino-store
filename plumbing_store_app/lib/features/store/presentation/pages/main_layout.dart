@@ -36,7 +36,7 @@ class _MainLayoutState extends State<MainLayout> {
 
   /// يفتح الـ Drawer الجانبي (يُستدعى من HomePage)
   void openDrawer() {
-    _scaffoldKey.currentState?.openEndDrawer();
+    _scaffoldKey.currentState?.openDrawer();
   }
 
   late final List<Widget> _screens;
@@ -64,7 +64,7 @@ class _MainLayoutState extends State<MainLayout> {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         key: _scaffoldKey,
-        endDrawer: _buildAppDrawer(context, nav),
+        drawer: _buildAppDrawer(context, nav),
         body: IndexedStack(
           index: currentIndex,
           children: [
@@ -90,6 +90,7 @@ class _MainLayoutState extends State<MainLayout> {
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Row(
+                textDirection: TextDirection.ltr,
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: List.generate(_screenLabels.length, (index) {
                   final selected = currentIndex == index;

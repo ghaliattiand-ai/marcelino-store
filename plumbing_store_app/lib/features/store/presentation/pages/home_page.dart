@@ -201,7 +201,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           if (widget.onOpenDrawer != null) {
             widget.onOpenDrawer!();
           } else {
-            Scaffold.of(context).openEndDrawer();
+            Scaffold.of(context).openDrawer();
           }
         },
         child: const Padding(
