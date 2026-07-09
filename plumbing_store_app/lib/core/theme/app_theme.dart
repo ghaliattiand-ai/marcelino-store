@@ -95,18 +95,18 @@ class AppTheme {
     return isDark ? _darkInstance : _lightInstance;
   }
 
-  static final AppThemeColors _lightInstance = AppThemeColors(
+  static const AppThemeColors _lightInstance = AppThemeColors(
     isDark: false,
     background: bgLight,
     card: cardLight,
     border: borderLight,
     textPrimary: textLightPrimary,
     textMuted: textLightMuted,
-    fieldFill: const Color(0xFFF7F8FA),
-    shadow: const Color(0x14000000),
+    fieldFill: Color(0xFFF7F8FA),
+    shadow: Color(0x14000000),
   );
 
-  static final AppThemeColors _darkInstance = AppThemeColors(
+  static const AppThemeColors _darkInstance = AppThemeColors(
     isDark: true,
     background: bgDark,
     card: cardDark,
@@ -114,7 +114,7 @@ class AppTheme {
     textPrimary: textDarkPrimary,
     textMuted: textDarkMuted,
     fieldFill: cardDarkElevated,
-    shadow: const Color(0x33000000),
+    shadow: Color(0x33000000),
   );
 
   // ===== بناء الثيمات =====

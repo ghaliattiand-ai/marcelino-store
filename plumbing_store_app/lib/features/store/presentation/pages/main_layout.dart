@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:plumbing_store_app/core/providers/auth_provider.dart';
 import 'package:plumbing_store_app/core/providers/cart_provider.dart';
 import 'package:plumbing_store_app/core/providers/navigation_provider.dart';
-import 'package:plumbing_store_app/core/providers/settings_provider.dart';
 import 'package:plumbing_store_app/core/theme/app_theme.dart';
 import 'home_page.dart';
 import 'categories_page.dart';
@@ -36,7 +35,7 @@ class _MainLayoutState extends State<MainLayout> {
 
   /// يفتح الـ Drawer الجانبي (يُستدعى من HomePage)
   void openDrawer() {
-    _scaffoldKey.currentState?.openDrawer();
+    _scaffoldKey.currentState?.openEndDrawer();
   }
 
   late final List<Widget> _screens;
@@ -46,11 +45,11 @@ class _MainLayoutState extends State<MainLayout> {
     super.initState();
     _screens = <Widget>[
       HomePage(onOpenDrawer: openDrawer),
-      CategoriesPage(),
-      AssistantPage(),
-      CartPage(),
-      OrdersPage(),
-      ProfilePage(),
+      const CategoriesPage(),
+      const AssistantPage(),
+      const CartPage(),
+      const OrdersPage(),
+      const ProfilePage(),
     ];
   }
 
@@ -64,7 +63,7 @@ class _MainLayoutState extends State<MainLayout> {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         key: _scaffoldKey,
-        drawer: _buildAppDrawer(context, nav),
+        endDrawer: _buildAppDrawer(context, nav),
         body: IndexedStack(
           index: currentIndex,
           children: [
@@ -90,7 +89,6 @@ class _MainLayoutState extends State<MainLayout> {
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Row(
-                textDirection: TextDirection.ltr,
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: List.generate(_screenLabels.length, (index) {
                   final selected = currentIndex == index;
@@ -212,12 +210,10 @@ class _MainLayoutState extends State<MainLayout> {
   // ===== Drawer (القائمة الجانبية) =====
   Widget _buildAppDrawer(BuildContext context, NavigationProvider nav) {
     final auth = context.watch<AuthProvider>();
-    final settings = context.watch<SettingsProvider>();
     final t = AppTheme.of(context);
     final isLoggedIn = auth.isLoggedIn;
     final userName = auth.name ?? 'زائر';
     final userPhone = auth.phone ?? 'تسجيل الدخول';
-    final isDark = settings.isDarkMode;
 
     void closeDrawer() {
       Navigator.of(context).maybePop();
@@ -288,25 +284,6 @@ class _MainLayoutState extends State<MainLayout> {
               _drawerItem(context, icon: Icons.person_outline, label: 'الملف الشخصي', onTap: () { nav.goToTab(5); closeDrawer(); }),
 
               const Divider(height: 32),
-
-              // الوضع الليلي
-              ListTile(
-                leading: Icon(
-                  isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-                  color: AppTheme.navy,
-                ),
-                title: Text(
-                  isDark ? 'الوضع النهاري' : 'الوضع الليلي',
-                  style: TextStyle(color: t.textPrimary, fontSize: 14, fontWeight: FontWeight.w500),
-                ),
-                trailing: Switch(
-                  value: isDark,
-                  activeColor: AppTheme.orange,
-                  onChanged: (v) => settings.toggleDarkMode(),
-                ),
-              ),
-
-              const Divider(height: 16),
 
               // خروج / تسجيل دخول
               _drawerItem(

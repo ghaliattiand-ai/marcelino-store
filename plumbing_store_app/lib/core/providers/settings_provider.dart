@@ -4,12 +4,12 @@ import '../constants/app_constants.dart';
 import '../network/api_service.dart';
 
 class SettingsProvider extends ChangeNotifier {
-  bool _isDarkMode = false;
   bool _notificationsEnabled = true;
   String _language = 'ar';
   String _apiBaseUrl = AppConstants.defaultBaseUrl;
 
-  bool get isDarkMode => _isDarkMode;
+  // دايماً false — لا يوجد وضع ليلي بعد الآن
+  bool get isDarkMode => false;
   bool get notificationsEnabled => _notificationsEnabled;
   String get language => _language;
   bool get isArabic => _language == 'ar';
@@ -17,7 +17,6 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
-    _isDarkMode = prefs.getBool('is_dark_mode') ?? false;
     _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
     _language = prefs.getString('language') ?? 'ar';
     // نجلب العنوان من ثابت AppConstants الذي تم تحميله في main()
@@ -25,11 +24,9 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // لا فائدة من تبديل الوضع الليلي — نُبقيها no-op للأمان
   Future<void> toggleDarkMode() async {
-    _isDarkMode = !_isDarkMode;
     notifyListeners();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('is_dark_mode', _isDarkMode);
   }
 
   Future<void> toggleNotifications() async {

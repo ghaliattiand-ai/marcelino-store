@@ -13,6 +13,7 @@ import 'package:plumbing_store_app/core/providers/addresses_provider.dart';
 import 'package:plumbing_store_app/core/providers/public_settings_provider.dart';
 import 'package:plumbing_store_app/core/network/api_service.dart';
 import 'package:plumbing_store_app/core/data/store_api_service.dart';
+import 'package:plumbing_store_app/core/data/tracking_service.dart';
 import 'features/splash/presentation/pages/splash_screen.dart';
 
 void main() async {
@@ -29,6 +30,9 @@ void main() async {
   // ملاحظة: التطبيق مصمم ليعمل بالـ mock fallback لو فشل الاتصال — لا يُحجَم على الإطلاق
   await ApiService().init();
   await StoreApiService().init();
+
+  // 3) تتبع فتح التطبيق (fire-and-forget) — بدون أي خدمات طرف ثالث
+  TrackingService().trackAppOpen();
 
   runApp(const MyApp());
 }
@@ -55,14 +59,13 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(create: (_) => PublicSettingsProvider()),
       ],
-      child: Consumer<SettingsProvider>(
-        builder: (context, settings, _) {
+      child: Builder(
+        builder: (context) {
           return MaterialApp(
             title: AppConstants.appName,
             debugShowCheckedModeBanner: false,
+            // التطبيق نهاري دايماً (تم إلغاء الوضع الليلي)
             theme: AppTheme.lightTheme(),
-            darkTheme: AppTheme.darkTheme(),
-            themeMode: settings.isDarkMode ? ThemeMode.dark : ThemeMode.light,
             home: const SplashScreen(),
           );
         },

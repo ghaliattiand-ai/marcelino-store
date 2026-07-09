@@ -3,9 +3,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 import 'package:plumbing_store_app/core/models/assistant_message.dart';
 import 'package:plumbing_store_app/core/data/assistant_service.dart';
 import 'package:plumbing_store_app/core/data/store_api_service.dart';
+import 'package:plumbing_store_app/core/providers/auth_provider.dart';
 import 'package:plumbing_store_app/core/models/store_product.dart';
 import 'product_details_page.dart';
 import '../../../../core/widgets/page_transitions.dart';
@@ -61,15 +63,19 @@ class _AssistantPageState extends State<AssistantPage> with TickerProviderStateM
     }
     // لو مفيش محادثات محفوظة، نظيف رسالة الترحيب
     if (mounted && _messages.isEmpty) {
-      setState(() {
-        _messages.add(AssistantMessage(
-          id: 'welcome',
-          text: 'أهلاً! 🤖 أنا مساعد MARCELINO الذكي. اشرحلي المشكلة اللى عندك وأنا هقترحلك المنتجات المناسبة من المتجر. \n\nمثلاً:\n• "الحنفية بتقطّر مية"\n• "محتاج بويا للحيط"\n• "الصرف ممسود"\n• "محتاج دريل للحفر"',
-          sender: MessageSender.assistant,
-          timestamp: DateTime.now(),
-        ));
-      });
+      _addWelcomeMessage();
     }
+  }
+
+  void _addWelcomeMessage() {
+    setState(() {
+      _messages.add(AssistantMessage(
+        id: 'welcome',
+        text: 'أهلاً! 🤖 أنا مساعد MARCELINO الذكي. اشرحلي المشكلة اللى عندك وأنا هقترحلك المنتجات المناسبة من المتجر. \n\nمثلاً:\n• "الحنفية بتقطّر مية"\n• "محتاج بويا للحيط"\n• "الصرف ممسود"\n• "محتاج دريل للحفر"',
+        sender: MessageSender.assistant,
+        timestamp: DateTime.now(),
+      ));
+    });
   }
 
   /// حفظ المحادثات الحالية على جهاز المستخدم
@@ -178,8 +184,87 @@ class _AssistantPageState extends State<AssistantPage> with TickerProviderStateM
     );
   }
 
+  /// يفتح قائمة المحادثات السابقة (للمستخدم المسجل فقط)
+  Future<void> _openConversationsList() async {
+    final auth = context.read<AuthProvider>();
+    if (!auth.isLoggedIn) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('سجّل الدخول عشان توصل لمحادثاتك السابقة'),
+          backgroundColor: _navy,
+        ),
+      );
+      return;
+    }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _ConversationsListSheet(
+        onPick: (summary) async {
+          Navigator.pop(context); // نقفل الـ sheet الأول
+          await _loadSpecificConversation(summary.sessionId);
+        },
+      ),
+    );
+  }
+
+  Future<void> _loadSpecificConversation(String sessionId) async {
+    setState(() => _isTyping = true);
+    try {
+      final messages = await AssistantService().getConversation(sessionId);
+      if (messages != null && messages.isNotEmpty && mounted) {
+        setState(() {
+          _messages
+            ..clear()
+            ..addAll(messages);
+          _isTyping = false;
+        });
+        // نحدّث المخزن المحلي كمان
+        _saveMessages();
+        _scrollToBottom();
+        return;
+      }
+    } catch (_) {}
+    if (mounted) {
+      setState(() => _isTyping = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذّر تحميل المحادثة'), backgroundColor: _orange),
+      );
+    }
+  }
+
+  /// يحفظ المحادثة الحالية على السيرفر ويبدأ واحدة جديدة فارغة
+  Future<void> _startNewConversation() async {
+    final auth = context.read<AuthProvider>();
+    // للزوار: نحفظ محلياً بس فقط ولا نرسل للسيرفر
+    if (!auth.isLoggedIn) {
+      // نحدّث الـ sessionId المحلي بس ونفضّي الشاشة
+      await AssistantService().resetLocalSession();
+      setState(() {
+        _messages.clear();
+        _addWelcomeMessage();
+      });
+      _saveMessages();
+      return;
+    }
+
+    // للمسجلين: نبدأ محادثة جديدة على السيرفر ونفضّي الشاشة
+    await AssistantService().startNewConversation();
+    // لو ما فشلش إنشاء محادثة على السيرفر، نعتمد على sessionId المحلي بس
+    setState(() {
+      _messages.clear();
+      _addWelcomeMessage();
+    });
+    _saveMessages();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
@@ -188,9 +273,9 @@ class _AssistantPageState extends State<AssistantPage> with TickerProviderStateM
           backgroundColor: _navy,
           elevation: 0,
           toolbarHeight: 64,
-          title: Row(
+          title: const Row(
             mainAxisSize: MainAxisSize.min,
-            children: const [
+            children: [
               CircleAvatar(
                 backgroundColor: _orange,
                 radius: 18,
@@ -213,26 +298,49 @@ class _AssistantPageState extends State<AssistantPage> with TickerProviderStateM
             ],
           ),
           actions: [
+            // زر المحادثات القديمة (للمستخدمين المسجلين)
+            IconButton(
+              icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+              tooltip: 'المحادثات السابقة',
+              onPressed: _openConversationsList,
+            ),
             if (_messages.length > 1)
               IconButton(
                 icon: const Icon(Icons.refresh, color: Colors.white),
-                onPressed: () {
-                  setState(() {
-                    _messages.removeRange(1, _messages.length);
-                  });
-                  _saveMessages(); // نحفظ الحالة الجديدة (فاضية)
-                },
+                onPressed: _startNewConversation,
                 tooltip: 'محادثة جديدة',
               ),
           ],
         ),
         body: Column(
           children: [
+            // بانر تنبيه لو مش مسجل: محادثاته مش هتتحفظ على السيرفر
+            if (!auth.isLoggedIn) _buildGuestBanner(),
             Expanded(child: _buildChatList()),
             _buildTypingIndicator(),
             _buildInputBar(),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildGuestBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      color: _orange.withValues(alpha: 0.12),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, color: _orange, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'سجّل الدخول عشان تقدر توصل لمحادثاتك من أي جهاز',
+              style: TextStyle(color: _orange.withValues(alpha: 0.9), fontSize: 12),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -320,7 +428,7 @@ class _AssistantPageState extends State<AssistantPage> with TickerProviderStateM
                     ),
                   ],
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.send,
                   color: Colors.white,
                   size: 22,
@@ -331,6 +439,126 @@ class _AssistantPageState extends State<AssistantPage> with TickerProviderStateM
         ),
       ),
     );
+  }
+}
+
+// ===== قائمة المحادثات السابقة (Bottom Sheet) =====
+class _ConversationsListSheet extends StatefulWidget {
+  final void Function(ConversationSummary) onPick;
+  const _ConversationsListSheet({required this.onPick});
+
+  @override
+  State<_ConversationsListSheet> createState() => _ConversationsListSheetState();
+}
+
+class _ConversationsListSheetState extends State<_ConversationsListSheet> {
+  List<ConversationSummary> _items = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+    });
+    try {
+      final items = await AssistantService().listConversations();
+      if (!mounted) return;
+      setState(() {
+        _items = items;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.7,
+        child: Column(
+          children: [
+            // مقبض السحب
+            Container(
+              width: 50,
+              height: 4,
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'المحادثات السابقة',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _navy),
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(child: _buildBody()),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator(color: _navy));
+    }
+    if (_items.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.chat_bubble_outline, size: 56, color: Colors.grey[300]),
+            const SizedBox(height: 12),
+            Text('مفيش محادثات سابقة', style: TextStyle(color: Colors.grey[400])),
+          ],
+        ),
+      );
+    }
+    return ListView.separated(
+      padding: EdgeInsets.zero,
+      itemCount: _items.length,
+      separatorBuilder: (_, __) => Divider(height: 1, indent: 16, color: Colors.grey[200]),
+      itemBuilder: (context, i) {
+        final it = _items[i];
+        return ListTile(
+          leading: CircleAvatar(
+            backgroundColor: _navy.withValues(alpha: 0.1),
+            child: const Icon(Icons.smart_toy, color: _navy, size: 22),
+          ),
+          title: Text(
+            it.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          ),
+          subtitle: Text(
+            '${it.messageCount} رسالة • ${_formatDate(it.updatedAt)}',
+            style: TextStyle(color: Colors.grey[500], fontSize: 12),
+          ),
+          trailing: const Icon(Icons.arrow_back_ios, size: 16, color: Colors.grey),
+          onTap: () => widget.onPick(it),
+        );
+      },
+    );
+  }
+
+  String _formatDate(DateTime d) {
+    return '${d.day}/${d.month}/${d.year}';
   }
 }
 
@@ -489,9 +717,9 @@ class _ChatProductCard extends StatelessWidget {
                 color: _orange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Row(
+              child: const Row(
                 mainAxisSize: MainAxisSize.min,
-                children: const [
+                children: [
                   Text('عرض', style: TextStyle(color: _orange, fontSize: 11, fontWeight: FontWeight.bold)),
                   Icon(Icons.arrow_back_ios, color: _orange, size: 10),
                 ],

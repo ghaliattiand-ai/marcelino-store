@@ -54,6 +54,7 @@ app.use('/api/banners', require('./routes/banners'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/assistant', require('./routes/assistant'));
+app.use('/api/tracking', require('./routes/tracking'));
 
 // Route رئيسي للتأكد إن السيرفر شغال
 app.get('/', (req, res) => {

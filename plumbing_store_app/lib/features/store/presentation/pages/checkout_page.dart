@@ -2,12 +2,14 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:plumbing_store_app/core/models/order_model.dart';
 import 'package:plumbing_store_app/core/models/public_settings.dart';
 import 'package:plumbing_store_app/core/theme/app_theme.dart';
+import 'package:plumbing_store_app/core/network/api_service.dart';
 import 'package:plumbing_store_app/core/providers/cart_provider.dart';
 import 'package:plumbing_store_app/core/providers/auth_provider.dart';
 import 'package:plumbing_store_app/core/providers/addresses_provider.dart';
@@ -38,6 +40,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
   File? _proofImageFile;
   StoreConfig? _config;
   bool _placing = false;
+  // ===== الكوبون =====
+  final TextEditingController _couponController = TextEditingController();
+  bool _validatingCoupon = false;
+  bool _couponApplied = false;
+  double _couponDiscount = 0; // مبلغ الخصم (للنسبة والمبلغ الثابت)
+  bool _freeShippingCoupon = false; // كوبون شحن مجاني
+  String _couponMessage = '';
 
   @override
   void initState() {
@@ -56,6 +65,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     _proofFromNumberController.dispose();
     _proofFromNameController.dispose();
     _proofDateController.dispose();
+    _couponController.dispose();
     super.dispose();
   }
 
@@ -116,6 +126,73 @@ class _CheckoutPageState extends State<CheckoutPage> {
     }
   }
 
+  /// التحقق من كوبون الخصم قبل الطلب
+  Future<void> _validateCoupon() async {
+    final code = _couponController.text.trim();
+    if (code.isEmpty) {
+      setState(() => _couponMessage = 'اكتب كود الكوبون الأول');
+      return;
+    }
+    setState(() {
+      _validatingCoupon = true;
+      _couponMessage = '';
+      _couponApplied = false;
+      _couponDiscount = 0;
+      _freeShippingCoupon = false;
+    });
+
+    final cart = context.read<CartProvider>();
+    final subtotal = cart.subtotal;
+    try {
+      await ApiService().init();
+      final res = await ApiService().dio.post(
+        '/coupons/validate',
+        data: {
+          'code': code.toUpperCase(),
+          'subtotal': subtotal,
+        },
+      );
+      if (!mounted) return;
+      final data = res.data as Map<String, dynamic>;
+      setState(() {
+        _couponApplied = true;
+        _validatingCoupon = false;
+        _couponDiscount = (data['discount'] as num?)?.toDouble() ?? 0;
+        _freeShippingCoupon = data['freeShipping'] == true;
+        _couponMessage = data['message'] as String? ?? 'تم تفعيل الكوبون';
+      });
+    } on DioException catch (e) {
+      if (!mounted) return;
+      final msg = (e.response?.data is Map)
+          ? (e.response!.data['message'] as String? ?? 'كوبون غير صالح')
+          : 'كوبون غير صالح';
+      setState(() {
+        _validatingCoupon = false;
+        _couponApplied = false;
+        _couponDiscount = 0;
+        _freeShippingCoupon = false;
+        _couponMessage = msg;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _validatingCoupon = false;
+        _couponMessage = 'تعذّر التحقق من الكوبون، حاول تاني';
+      });
+    }
+  }
+
+  /// إزالة الكوبون المُطبّق
+  void _removeCoupon() {
+    setState(() {
+      _couponController.clear();
+      _couponApplied = false;
+      _couponDiscount = 0;
+      _freeShippingCoupon = false;
+      _couponMessage = '';
+    });
+  }
+
   Future<void> _placeOrder() async {
     if (_placing) return;
     final address = _addressController.text.trim();
@@ -148,6 +225,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
           auth: context.read<AuthProvider>(),
           address: address,
           paymentMethod: _selectedMethod,
+          // لو فيه كوبون تم التحقق منه بنجاح، نرسّله عشان يطبّق في الـ backend
+          couponCode: _couponApplied ? _couponController.text.trim() : null,
           // للمسارات غير COD — نمرّر إثبات الدفع
           proofFromNumber: _selectedMethod == PaymentMethod.cod
               ? null
@@ -340,7 +419,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
               icon: Icons.payments_outlined,
               child: _buildPaymentMethods(),
             ),
-            // لو الطريقة غير كاش → نعرض بيانات التحويل + حقول الإثبات
+            // لو الطريقة غير كاش - نعرض بيانات التحويل + حقول الإثبات
             if (_selectedMethod != PaymentMethod.cod) ...[
               const SizedBox(height: 12),
               _PaymentInfoCard(method: _selectedMethod, settings: settings, config: _config),
@@ -353,15 +432,108 @@ class _CheckoutPageState extends State<CheckoutPage> {
             ],
             const SizedBox(height: 12),
             _SectionCard(
+              title: 'كوبون الخصم',
+              icon: Icons.local_offer_outlined,
+              child: _buildCouponField(),
+            ),
+            const SizedBox(height: 12),
+            _SectionCard(
               title: 'الإجمالي',
               icon: Icons.receipt_long_outlined,
-              child: _TotalSummary(cart: cart),
+              child: _TotalSummary(
+                cart: cart,
+                couponDiscount: _couponDiscount,
+                freeShippingCoupon: _freeShippingCoupon,
+                couponApplied: _couponApplied,
+              ),
             ),
             const SizedBox(height: 100),
           ],
         ),
         bottomNavigationBar: _buildBottomBar(cart),
       ),
+    );
+  }
+
+  Widget _buildCouponField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (!_couponApplied) ...[
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _couponController,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: const InputDecoration(
+                    labelText: 'كود الكوبون',
+                    hintText: 'مثال: MARCEL20',
+                    prefixIcon: Icon(Icons.local_offer_outlined, color: AppTheme.navy),
+                  ),
+                  onSubmitted: (_) => _validateCoupon(),
+                ),
+              ),
+              const SizedBox(width: 10),
+              ElevatedButton(
+                onPressed: _validatingCoupon ? null : _validateCoupon,
+                child: _validatingCoupon
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                      )
+                    : const Text('تطبيق'),
+              ),
+            ],
+          ),
+          if (_couponMessage.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              _couponMessage,
+              style: const TextStyle(fontSize: 12, color: AppTheme.error),
+            ),
+          ],
+        ] else ...[
+          // الكوبون نُطبّق بنجاح - نظهره كبادج قابل للإزالة
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppTheme.success.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.success.withValues(alpha: 0.3), width: 1.5),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.check_circle, color: AppTheme.success, size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _couponController.text.toUpperCase(),
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.success, fontSize: 14, letterSpacing: 1),
+                      ),
+                      Text(
+                        _freeShippingCoupon
+                            ? 'شحن مجاني'
+                            : 'خصم ${_couponDiscount.toInt()} ج.م',
+                        style: const TextStyle(fontSize: 12, color: AppTheme.success),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 18, color: AppTheme.error),
+                  onPressed: _removeCoupon,
+                  tooltip: 'إزالة الكوبون',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -549,6 +721,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   Widget _buildBottomBar(CartProvider cart) {
+    // الإجمالي بعد خصم الكوبون (لو مُطبّق)
+    final shipping = _freeShippingCoupon ? 0.0 : cart.shipping;
+    final effectiveTotal = cart.subtotal - _couponDiscount + shipping;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: BoxDecoration(
@@ -571,7 +746,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 children: [
                   Text('الإجمالي', style: TextStyle(color: AppTheme.of(context).textMuted, fontSize: 12)),
                   Text(
-                    '${cart.totalPrice.toInt()} ج.م',
+                    '${effectiveTotal.toInt()} ج.م',
                     style: const TextStyle(color: AppTheme.orange, fontWeight: FontWeight.bold, fontSize: 20),
                   ),
                 ],
@@ -675,16 +850,29 @@ class _OrderSummary extends StatelessWidget {
 
 class _TotalSummary extends StatelessWidget {
   final CartProvider cart;
-  const _TotalSummary({required this.cart});
+  final double couponDiscount;
+  final bool freeShippingCoupon;
+  final bool couponApplied;
+  const _TotalSummary({
+    required this.cart,
+    this.couponDiscount = 0,
+    this.freeShippingCoupon = false,
+    this.couponApplied = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final shipping = freeShippingCoupon ? 0.0 : cart.shipping;
+    final total = cart.subtotal - couponDiscount + shipping;
     return Column(
       children: [
         _row('المجموع', '${cart.subtotal.toInt()} ج.م', context: context),
-        _row('الشحن', cart.shipping == 0 ? 'مجاني' : '${cart.shipping.toInt()} ج.م', context: context),
+        // بند الخصم لو فيه كوبون
+        if (couponApplied && couponDiscount > 0)
+          _row('الخصم', '- ${couponDiscount.toInt()} ج.م', context: context, color: AppTheme.success),
+        _row('الشحن', shipping == 0 ? 'مجاني' : '${shipping.toInt()} ج.م', context: context),
         const Divider(height: 16),
-        _row('الإجمالي', '${cart.totalPrice.toInt()} ج.م', bold: true, color: AppTheme.orange, context: context),
+        _row('الإجمالي', '${total.toInt()} ج.م', bold: true, color: AppTheme.orange, context: context),
       ],
     );
   }

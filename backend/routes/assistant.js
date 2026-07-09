@@ -2,6 +2,8 @@ const express = require('express');
 const axios = require('axios');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
+const ChatConversation = require('../models/ChatConversation');
+const { protect } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -241,9 +243,28 @@ async function callDeepSeek(userMessage, storeContext) {
   }
 }
 
+// middleware اختياري لاستخراج userId من JWT لو موجود — المساعد صالح للزوار والمسجلين
+async function optionalAuth(req, _res, next) {
+  try {
+    const bearer = req.headers.authorization;
+    if (bearer && bearer.startsWith('Bearer ')) {
+      const jwt = require('jsonwebtoken');
+      const User = require('../models/User');
+      const decoded = jwt.verify(bearer.split(' ')[1], process.env.JWT_SECRET);
+      const user = await User.findById(decoded.id).select('-password');
+      if (user && user.isActive !== false) {
+        req.user = user;
+      }
+    }
+  } catch (_) {
+    // نتجاهل أي خطأ في الـ token
+  }
+  next();
+}
+
 // @route   POST /api/assistant/message
-// @access  Public (العميل بيدخل مشكلته)
-router.post('/message', async (req, res) => {
+// @access  Public (العميل بيدخل مشكلته) — لو مسجل دخول نربط المحادثة بحسابه
+router.post('/message', optionalAuth, async (req, res) => {
   try {
     // rate limit بسيط لكل IP
     const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').toString().split(',')[0].trim();
@@ -251,10 +272,14 @@ router.post('/message', async (req, res) => {
       return res.status(429).json({ message: 'كترت رسايل، حاول بعد دقيقة' });
     }
 
-    const { message } = req.body;
+    const { message, sessionId } = req.body;
     if (!message || !message.trim()) {
       return res.status(400).json({ message: 'اكتب مشكلتك الأول' });
     }
+    // sessionId مطلوب عشان نقدر نربط المحادثة (لو مش موجود نولّد واحد ونرجعه)
+    let sid = sessionId && String(sessionId).trim().length >= 4
+      ? String(sessionId).trim()
+      : 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
 
     // تنظيف رسالة العميل من محاولات prompt injection
     const safeMessage = sanitizeUserMessage(message);
@@ -314,39 +339,136 @@ router.post('/message', async (req, res) => {
       }));
     }
 
-    // ننسّق المنتجات بنفس الصيغة اللي Flutter بيتوقعها
-    const productsForApp = finalProducts.map(p => {
-      // لو المنتج من buildStoreContext نعيد query الصورة
-      return {
-        _id: p.id,
-        nameAr: p.name,
-        price: p.price,
-        description: p.description || '',
-        category: p.category || '',
-      };
-    });
-
     // لو في matching، نجيب بيانات المنتجات كاملة من DB عشان نرفق الصور
+    let fullProducts = [];
     if (finalProducts.length > 0) {
       const ids = finalProducts.map(p => p.id);
-      const fullProducts = await Product.find({ _id: { $in: ids } })
+      fullProducts = await Product.find({ _id: { $in: ids } })
         .populate('categoryId')
         .select('nameAr nameEn price discountPrice images description icon color categoryId');
-      return res.json({
-        message: finalMessage,
-        products: fullProducts,
-        usedLLM: usedLLM || 'fallback',
-      });
+    }
+
+    // ننسّق المنتجات بنفس الصيغة اللي Flutter بيتوقعها
+    const productsForApp = fullProducts.map(p => p);
+
+    // ===== حفظ المحادثة في الـ DB =====
+    let conversation = null;
+    try {
+      // نظبط شروط المطابقة: لو المستخدم مسجل، نطابقه بـ userId؛ غير كده بـ sessionId
+      const matchQuery = req.user
+        ? { userId: req.user._id, sessionId: sid }
+        : { userId: null, sessionId: sid };
+      conversation = await ChatConversation.findOne(matchQuery);
+
+      const userMsgDoc = {
+        role: 'user',
+        text: message.slice(0, 2000), // نحد النص المخزن
+        products: [],
+      };
+      const assistantMsgDoc = {
+        role: 'assistant',
+        text: (finalMessage || '').slice(0, 2000),
+        products: fullProducts.map(p => p._id),
+      };
+
+      if (!conversation) {
+        // محادثة جديدة — العنوان هو أول رسالة من العميل
+        conversation = await ChatConversation.create({
+          userId: req.user ? req.user._id : null,
+          sessionId: sid,
+          title: message.slice(0, 60) || 'محادثة جديدة',
+          messages: [userMsgDoc, assistantMsgDoc],
+          messageCount: 2,
+        });
+      } else {
+        // لو المستخدم سجل دخول بعد ما بدأ كزائر، نربط المحادثة بحسابه
+        if (req.user && !conversation.userId) {
+          conversation.userId = req.user._id;
+        }
+        conversation.messages.push(userMsgDoc, assistantMsgDoc);
+        conversation.messageCount = (conversation.messageCount || 0) + 2;
+        await conversation.save();
+      }
+    } catch (saveErr) {
+      // أي خطأ في الحفظ ما يوقفش الرد على العميل
+      console.error('Save conversation error:', saveErr.message);
     }
 
     res.json({
       message: finalMessage,
-      products: [],
+      products: productsForApp,
       usedLLM: usedLLM || 'fallback',
+      sessionId: sid,
+      conversationId: conversation ? conversation._id : null,
     });
   } catch (error) {
     console.error('Assistant error:', error);
     res.status(500).json({ message: 'حصل خطأ، حاول تاني' });
+  }
+});
+
+// @route   POST /api/assistant/conversations
+// @access  Private (العميل يبدأ محادثة جديدة)
+router.post('/conversations', protect, async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    let sid = sessionId && String(sessionId).trim().length >= 4
+      ? String(sessionId).trim()
+      : 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+
+    // لو فيه محادثة بنفس sessionId نرجعها
+    let conversation = await ChatConversation.findOne({ userId: req.user._id, sessionId: sid });
+    if (!conversation) {
+      conversation = await ChatConversation.create({
+        userId: req.user._id,
+        sessionId: sid,
+        title: 'محادثة جديدة',
+        messages: [],
+        messageCount: 0,
+      });
+    }
+    res.status(201).json({
+      sessionId: conversation.sessionId,
+      conversationId: conversation._id,
+      messageCount: conversation.messageCount,
+    });
+  } catch (error) {
+    console.error('Create conversation error:', error);
+    res.status(500).json({ message: 'خطأ في إنشاء المحادثة' });
+  }
+});
+
+// @route   GET /api/assistant/conversations
+// @access  Private (يرجع قائمة محادثات المستخدم)
+router.get('/conversations', protect, async (req, res) => {
+  try {
+    const conversations = await ChatConversation.find({ userId: req.user._id })
+      .sort({ updatedAt: -1 })
+      .select('title messageCount createdAt updatedAt sessionId')
+      .limit(50);
+    res.json({ conversations });
+  } catch (error) {
+    console.error('List conversations error:', error);
+    res.status(500).json({ message: 'خطأ في جلب المحادثات' });
+  }
+});
+
+// @route   GET /api/assistant/conversations/:sessionId
+// @access  Private (يرجع محادثة كاملة لصاحبها)
+router.get('/conversations/:sessionId', protect, async (req, res) => {
+  try {
+    const conversation = await ChatConversation.findOne({
+      userId: req.user._id,
+      sessionId: req.params.sessionId,
+    }).populate('messages.products', 'nameAr price images icon color');
+
+    if (!conversation) {
+      return res.status(404).json({ message: 'المحادثة غير موجودة' });
+    }
+    res.json({ conversation });
+  } catch (error) {
+    console.error('Get conversation error:', error);
+    res.status(500).json({ message: 'خطأ في جلب المحادثة' });
   }
 });
 

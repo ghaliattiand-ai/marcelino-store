@@ -43,6 +43,26 @@ class AssistantMessage {
           .toList(),
     );
   }
+
+  /// إعادة بناء الرسالة من بيانات الـ backend (محادثة محفوظة)
+  factory AssistantMessage.fromServerMessage(Map<String, dynamic> m) {
+    final seed = (m['_id'] ?? m['createdAt'] ?? '').toString();
+    return AssistantMessage(
+      id: seed.isNotEmpty
+          ? seed
+          : DateTime.now().millisecondsSinceEpoch.toString(),
+      text: (m['text'] as String?) ?? '',
+      sender: (m['role'] as String?) == 'user'
+          ? MessageSender.user
+          : MessageSender.assistant,
+      timestamp: m['createdAt'] != null
+          ? DateTime.tryParse(m['createdAt'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+      products: ((m['products'] as List?) ?? const [])
+          .map((p) => AssistantProduct.fromJson(p as Map<String, dynamic>))
+          .toList(),
+    );
+  }
 }
 
 // نسخة مبسطة من المنتج للعرض جوه الدردشة

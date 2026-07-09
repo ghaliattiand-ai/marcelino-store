@@ -41,6 +41,8 @@
         <button class="nav-btn" onclick="showSection('banners')">🖼️ الإعلانات</button>
         <button class="nav-btn" onclick="showSection('users')">👥 المستخدمين</button>
         <button class="nav-btn" onclick="showSection('analytics')">📊 التحليلات</button>
+        <button class="nav-btn" onclick="showSection('chats')">💬 محادثات المساعد</button>
+        <button class="nav-btn" onclick="showSection('appUsage')">📈 الاستخدام والمنتجات</button>
         <button class="nav-btn" onclick="showSection('settings')">⚙️ الإعدادات</button>
       </nav>
       <button class="logout-btn" onclick="logout()">🚪 تسجيل الخروج</button>
@@ -254,8 +256,78 @@
         </div>
       </section>
 
-      <!-- الإعدادات -->
-      <section id="settings" class="content-section">
+      <!-- محادثات المساعد -->
+      <section id="chats" class="content-section">
+        <div class="section-header">
+          <h3>آخر محادثات العملاء مع المساعد الذكي</h3>
+          <button class="btn-secondary" onclick="loadChats()">تحديث</button>
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>العميل</th>
+                <th>عنوان المحادثة</th>
+                <th>عدد الرسائل</th>
+                <th>آخر تحديث</th>
+                <th>الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="chatsTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- الاستخدام والمنتجات الأكثر مشاهدة -->
+      <section id="appUsage" class="content-section">
+        <div class="stats-grid">
+          <div class="stat-card stat-blue">
+            <div class="stat-icon">هاتف</div>
+            <div class="stat-info">
+              <div class="stat-number" id="statTotalOpens">0</div>
+              <div class="stat-label">إجمالي الدخول للتطبيق</div>
+            </div>
+          </div>
+          <div class="stat-card stat-orange">
+            <div class="stat-icon">تاريخ</div>
+            <div class="stat-info">
+              <div class="stat-number" id="statOpensToday">0</div>
+              <div class="stat-label">دخول اليوم</div>
+            </div>
+          </div>
+          <div class="stat-card stat-green">
+            <div class="stat-icon">ناس</div>
+            <div class="stat-info">
+              <div class="stat-number" id="statActiveUsers">0</div>
+              <div class="stat-label">مستخدمين نشطين (30 يوم)</div>
+            </div>
+          </div>
+          <div class="stat-card stat-purple">
+            <div class="stat-icon">عين</div>
+            <div class="stat-info">
+              <div class="stat-number" id="statProductViews">0</div>
+              <div class="stat-label">إجمالي مشاهدة المنتجات</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-row">
+          <div class="dashboard-card">
+            <div class="chart-header">
+              <h3>دخول التطبيق</h3>
+              <div class="period-toggle">
+                <button id="usagePeriodDaily" class="active" onclick="loadAppUsage('daily')">يومي</button>
+                <button id="usagePeriodMonthly" onclick="loadAppUsage('monthly')">شهري</button>
+              </div>
+            </div>
+            <div class="chart-wrapper"><canvas id="appOpensChart"></canvas></div>
+          </div>
+          <div class="dashboard-card">
+            <h3>أكثر المنتجات مشاهدة</h3>
+            <div id="topProductsViews" class="recent-list"></div>
+          </div>
+        </div>
+      </section>
         <div class="settings-grid">
           <div class="settings-card">
             <h3>🏪 بيانات المتجر</h3>
@@ -645,6 +717,17 @@
         </div>
       </div>
       <div id="invoiceContent"></div>
+    </div>
+  </div>
+
+  <!-- Modal: محادثة المساعد -->
+  <div id="chatModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h3 id="chatModalTitle">محادثة المساعد</h3>
+        <button onclick="closeModal('chatModal')" class="close-btn">إغلاق</button>
+      </div>
+      <div id="chatConversationBody"></div>
     </div>
   </div>
 

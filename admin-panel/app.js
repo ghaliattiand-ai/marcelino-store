@@ -323,12 +323,15 @@ const SECTIONS = {
   banners: 'الإعلانات',
   users: 'المستخدمين',
   analytics: 'التحليلات',
+  chats: 'محادثات المساعد',
+  appUsage: 'الاستخدام والمنتجات',
   settings: 'الإعدادات',
 };
 
 // Chart instances (عشان نقدر نمسحهم قبل إعادة الرسم)
 let salesChartInstance = null;
 let categoriesChartInstance = null;
+let appOpensChartInstance = null;
 
 function showSection(name) {
   document.querySelectorAll('.content-section').forEach((s) => s.classList.remove('active'));
@@ -351,6 +354,8 @@ function showSection(name) {
   if (name === 'banners') loadBanners();
   if (name === 'users') loadUsers();
   if (name === 'analytics') loadAnalytics('daily');
+  if (name === 'chats') loadChats();
+  if (name === 'appUsage') loadAppUsage('daily');
   if (name === 'settings') loadSettings();
 }
 
@@ -1504,6 +1509,163 @@ function exportCSV(type) {
   link.click();
   URL.revokeObjectURL(url);
   showToast(`تم تصدير ${filename}`);
+}
+
+// ===== محادثات المساعد الذكي =====
+async function loadChats() {
+  const tbody = document.getElementById('chatsTable');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:30px">جاري التحميل...</td></tr>';
+  try {
+    const data = await api('/admin/chats?limit=50');
+    const chats = data.chats || [];
+    if (chats.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text-muted)">لا توجد محادثات بعد</td></tr>';
+      return;
+    }
+    tbody.innerHTML = chats.map((c) => {
+      const user = c.userId || {};
+      const name = escapeHtml(user.name || 'زائر');
+      const phone = escapeHtml(user.phone || '—');
+      const title = escapeHtml(c.title || 'محادثة جديدة');
+      const date = formatDate(c.updatedAt || c.createdAt);
+      const safeTitle = title.replace(/'/g, "\\'");
+      return '<tr>' +
+        '<td><div style="font-weight:600">' + name + '</div>' +
+        '<div style="font-size:12px;color:var(--text-muted)">' + phone + '</div></td>' +
+        '<td>' + title + '</td>' +
+        '<td>' + (c.messageCount || 0) + '</td>' +
+        '<td>' + date + '</td>' +
+        '<td><button class="btn-primary" style="padding:6px 12px;font-size:12px" onclick="openChatModal(\'' + c._id + '\', \'' + safeTitle + '\')">عرض</button></td>' +
+        '</tr>';
+    }).join('');
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:30px;color:#E53935">خطأ: ' + escapeHtml(e.message) + '</td></tr>';
+  }
+}
+
+// ===== عرض محادثة كاملة =====
+async function openChatModal(chatId, title) {
+  const body = document.getElementById('chatConversationBody');
+  document.getElementById('chatModalTitle').textContent = title ? ('محادثة: ' + title) : 'محادثة المساعد';
+  body.innerHTML = '<div style="text-align:center;padding:30px">جاري تحميل المحادثة...</div>';
+  showModal('chatModal');
+  try {
+    const data = await api('/admin/chats/' + chatId);
+    const chat = data.chat;
+    if (!chat || !chat.messages || chat.messages.length === 0) {
+      body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted)">لا توجد رسائل</div>';
+      return;
+    }
+    const user = chat.userId || {};
+    const userInfo = user.name
+      ? '<div style="padding:8px 14px;background:var(--bg-secondary);border-radius:8px;margin-bottom:12px;font-size:13px">العميل: <strong>' + escapeHtml(user.name) + '</strong>' + (user.phone ? (' — ' + escapeHtml(user.phone)) : '') + '</div>'
+      : '';
+    const messagesHtml = chat.messages.map((m) => {
+      const isUser = m.role === 'user';
+      const align = isUser ? 'flex-end' : 'flex-start';
+      const bg = isUser ? '#0D1B3E' : 'var(--bg-secondary)';
+      const color = isUser ? '#fff' : 'var(--text-primary)';
+      const time = new Date(m.createdAt).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' });
+      let productsHtml = '';
+      if (m.products && Array.isArray(m.products) && m.products.length > 0) {
+        productsHtml = '<div style="margin-top:6px;font-size:12px;color:var(--text-muted)">المنتجات المقترحة: ' +
+          m.products.map((p) => escapeHtml(p.nameAr || 'منتج')).join('، ') + '</div>';
+      }
+      return '<div style="display:flex;justify-content:' + align + ';margin-bottom:10px">' +
+        '<div style="max-width:75%;padding:10px 14px;border-radius:12px;background:' + bg + ';color:' + color + '">' +
+        '<div style="white-space:pre-wrap;font-size:14px;line-height:1.6">' + escapeHtml(m.text || '') + '</div>' +
+        productsHtml +
+        '<div style="font-size:10px;opacity:0.6;margin-top:4px">' + time + '</div>' +
+        '</div></div>';
+    }).join('');
+    body.innerHTML = userInfo + '<div id="chatScroll" style="max-height:60vh;overflow-y:auto;padding:4px">' + messagesHtml + '</div>';
+    const scroll = document.getElementById('chatScroll');
+    if (scroll) scroll.scrollTop = scroll.scrollHeight;
+  } catch (e) {
+    body.innerHTML = '<div style="text-align:center;padding:30px;color:#E53935">خطأ: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+// ===== الاستخدام والمنتجات الأكثر مشاهدة =====
+async function loadAppUsage(period = 'daily') {
+  // تظبيط أزرار الفترة
+  const dailyBtn = document.getElementById('usagePeriodDaily');
+  const monthlyBtn = document.getElementById('usagePeriodMonthly');
+  if (dailyBtn) dailyBtn.classList.toggle('active', period !== 'monthly');
+  if (monthlyBtn) monthlyBtn.classList.toggle('active', period === 'monthly');
+
+  try {
+    const [usageRes, visitorsRes, topRes] = await Promise.all([
+      api('/admin/analytics/app-usage?period=' + period),
+      api('/admin/analytics/visitors'),
+      api('/admin/analytics/top-products-views?limit=10'),
+    ]);
+
+    const totalOpens = document.getElementById('statTotalOpens');
+    if (totalOpens) totalOpens.textContent = usageRes.totalOpens || 0;
+    const opensToday = document.getElementById('statOpensToday');
+    if (opensToday) opensToday.textContent = usageRes.opensToday || 0;
+    const activeUsers = document.getElementById('statActiveUsers');
+    if (activeUsers) activeUsers.textContent = usageRes.activeUsers || 0;
+    const productViews = document.getElementById('statProductViews');
+    if (productViews) productViews.textContent = visitorsRes.totalProductViews || 0;
+
+    // رسم دخول التطبيق
+    if (appOpensChartInstance) appOpensChartInstance.destroy();
+    const ctx = document.getElementById('appOpensChart');
+    if (ctx) {
+      const opens = usageRes.opensOverTime || [];
+      appOpensChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: opens.map((x) => x._id),
+          datasets: [{
+            label: 'دخول التطبيق',
+            data: opens.map((x) => x.opens),
+            backgroundColor: '#0D1B3E',
+            borderRadius: 6,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+        },
+      });
+    }
+
+    // أكثر المنتجات مشاهدة
+    const topList = document.getElementById('topProductsViews');
+    if (topList) {
+      const products = topRes.products || [];
+      if (products.length === 0) {
+        topList.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted)">لا توجد بيانات بعد</div>';
+      } else {
+        topList.innerHTML = products.map((p, i) => {
+          const name = escapeHtml(p.name || 'منتج محذوف');
+          const price = Number(p.price || 0).toFixed(0);
+          const views = p.views || 0;
+          const origin = API.replace('/api', '');
+          const imgSrc = p.image ? (p.image.indexOf('http') === 0 ? p.image : origin + '/uploads/products/' + p.image) : '';
+          const img = imgSrc
+            ? '<img src="' + imgSrc + '" alt="' + name + '" style="width:40px;height:40px;border-radius:8px;object-fit:cover">'
+            : '<div style="width:40px;height:40px;border-radius:8px;background:var(--bg-secondary);display:flex;align-items:center;justify-content:center">📦</div>';
+          return '<div style="display:flex;align-items:center;gap:12px;padding:10px;border-bottom:1px solid var(--border)">' +
+            '<div style="font-weight:bold;color:var(--text-muted);width:24px">' + (i + 1) + '</div>' +
+            img +
+            '<div style="flex:1"><div style="font-weight:600">' + name + '</div>' +
+            '<div style="font-size:12px;color:var(--text-muted)">' + price + ' ج.م</div></div>' +
+            '<div style="text-align:right"><div style="font-weight:bold;color:#FF6B00">' + views + '</div>' +
+            '<div style="font-size:11px;color:var(--text-muted)">مشاهدة</div></div>' +
+            '</div>';
+        }).join('');
+      }
+    }
+  } catch (e) {
+    showToast('خطأ في جلب إحصائيات الاستخدام: ' + e.message, 'error');
+  }
 }
 
 // ===== Init =====

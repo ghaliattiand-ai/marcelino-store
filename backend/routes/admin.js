@@ -5,6 +5,8 @@ const Order = require('../models/Order');
 const Category = require('../models/Category');
 const Coupon = require('../models/Coupon');
 const Setting = require('../models/Setting');
+const ChatConversation = require('../models/ChatConversation');
+const AppEvent = require('../models/AppEvent');
 const { protect, admin } = require('../middleware/auth');
 
 const router = express.Router();
@@ -316,6 +318,186 @@ router.get('/low-stock', async (req, res) => {
   } catch (error) {
     console.error('Low stock error:', error);
     res.status(500).json({ message: 'خطأ في جلب المنتجات منخفضة المخزون' });
+  }
+});
+
+// ============================================================
+//  محادثات المساعد الذكي
+// ============================================================
+
+// @route   GET /api/admin/chats
+// قائمة آخر المحادثات (مع بيانات المستخدم)
+router.get('/chats', async (req, res) => {
+  try {
+    const { limit } = req.query;
+    const max = Math.min(parseInt(limit, 10) || 50, 200);
+    const chats = await ChatConversation.find()
+      .sort({ updatedAt: -1 })
+      .limit(max)
+      .populate('userId', 'name phone')
+      .select('title messageCount userId sessionId createdAt updatedAt');
+    res.json({ chats });
+  } catch (error) {
+    console.error('Chats list error:', error);
+    res.status(500).json({ message: 'خطأ في جلب المحادثات' });
+  }
+});
+
+// @route   GET /api/admin/chats/:id
+// محادثة كاملة (للعرض في لوحة التحكم)
+router.get('/chats/:id', async (req, res) => {
+  try {
+    const chat = await ChatConversation.findById(req.params.id)
+      .populate('userId', 'name phone')
+      .populate('messages.products', 'nameAr price images icon color');
+    if (!chat) {
+      return res.status(404).json({ message: 'المحادثة غير موجودة' });
+    }
+    res.json({ chat });
+  } catch (error) {
+    if (error.name === 'CastError') {
+      return res.status(404).json({ message: 'المحادثة غير موجودة' });
+    }
+    console.error('Chat get error:', error);
+    res.status(500).json({ message: 'خطأ في جلب المحادثة' });
+  }
+});
+
+// ============================================================
+//  إحصائيات الاستخدام (التتبع الداخلي)
+// ============================================================
+
+// @route   GET /api/admin/analytics/app-usage
+// إحصائيات دخول التطبيق: إجمالي الدخول + دخول اليوم + المستخدمين النشطين + الرسم البياني
+router.get('/analytics/app-usage', async (req, res) => {
+  try {
+    const { period } = req.query; // 'daily' أو 'monthly'
+    const isDaily = period !== 'monthly';
+    const dateFormat = isDaily ? '%Y-%m-%d' : '%Y-%m';
+    const limit = isDaily ? 7 : 12;
+
+    const startDate = new Date();
+    if (isDaily) {
+      startDate.setDate(startDate.getDate() - limit);
+    } else {
+      startDate.setMonth(startDate.getMonth() - limit);
+    }
+
+    // إجمالي أحداث app_open
+    const totalOpens = await AppEvent.countDocuments({ type: 'app_open' });
+
+    // دخول اليوم
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const opensToday = await AppEvent.countDocuments({
+      type: 'app_open',
+      createdAt: { $gte: todayStart },
+    });
+
+    // المستخدمين النشطين (distinct userId/sessionId آخر 30 يوم)
+    const activeSince = new Date();
+    activeSince.setDate(activeSince.getDate() - 30);
+    const distinctUsers = await AppEvent.distinct('userId', {
+      type: 'app_open',
+      userId: { $ne: null },
+      createdAt: { $gte: activeSince },
+    });
+    const distinctSessions = await AppEvent.distinct('sessionId', {
+      type: 'app_open',
+      createdAt: { $gte: activeSince },
+    });
+
+    // الرسم البياني للدخول حسب اليوم/الشهر
+    const opensOverTime = await AppEvent.aggregate([
+      { $match: { type: 'app_open', createdAt: { $gte: startDate } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: dateFormat, date: '$createdAt' } },
+          opens: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+      { $limit: limit },
+    ]);
+
+    res.json({
+      totalOpens,
+      opensToday,
+      activeUsers: distinctUsers.length,
+      activeSessions: distinctSessions.length,
+      opensOverTime,
+      period: isDaily ? 'daily' : 'monthly',
+    });
+  } catch (error) {
+    console.error('App usage analytics error:', error);
+    res.status(500).json({ message: 'خطأ في جلب إحصائيات الاستخدام' });
+  }
+});
+
+// @route   GET /api/admin/analytics/top-products-views
+// أكثر المنتجات مشاهدة/ضغطاً
+router.get('/analytics/top-products-views', async (req, res) => {
+  try {
+    const { limit } = req.query;
+    const max = Math.min(parseInt(limit, 10) || 10, 50);
+
+    const top = await AppEvent.aggregate([
+      { $match: { type: 'product_view', productId: { $ne: null } } },
+      { $group: {
+        _id: '$productId',
+        views: { $sum: 1 },
+      }},
+      { $sort: { views: -1 } },
+      { $limit: max },
+    ]);
+
+    // نجيب بيانات المنتجات
+    const productIds = top.map(t => t._id);
+    const products = await Product.find({ _id: { $in: productIds } })
+      .select('nameAr nameEn price images icon');
+    const productMap = new Map(products.map(p => [p._id.toString(), p]));
+
+    const result = top.map(t => {
+      const p = productMap.get(t._id.toString());
+      return {
+        _id: t._id,
+        views: t.views,
+        name: p ? p.nameAr : 'منتج محذوف',
+        price: p ? p.price : 0,
+        image: p && p.images && p.images.length > 0 ? p.images[0] : null,
+        icon: p ? p.icon : 'inventory_2',
+      };
+    });
+
+    res.json({ products: result });
+  } catch (error) {
+    console.error('Top products views error:', error);
+    res.status(500).json({ message: 'خطأ في جلب أكثر المنتجات مشاهدة' });
+  }
+});
+
+// @route   GET /api/admin/analytics/visitors
+// زوار اليوم (distinct sessions) + إجمالي الزوار
+router.get('/analytics/visitors', async (req, res) => {
+  try {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const visitorsToday = await AppEvent.distinct('sessionId', {
+      type: 'app_open',
+      createdAt: { $gte: todayStart },
+    });
+    const totalVisitors = await AppEvent.distinct('sessionId', { type: 'app_open' });
+    const totalViews = await AppEvent.countDocuments({ type: 'product_view' });
+
+    res.json({
+      visitorsToday: visitorsToday.length,
+      totalVisitors: totalVisitors.length,
+      totalProductViews: totalViews,
+    });
+  } catch (error) {
+    console.error('Visitors analytics error:', error);
+    res.status(500).json({ message: 'خطأ في جلب إحصائيات الزوار' });
   }
 });
 

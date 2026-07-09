@@ -30,13 +30,6 @@ class SettingsPage extends StatelessWidget {
             const SizedBox(height: 8),
             _SettingsCard(
               children: [
-                _SwitchTile(
-                  icon: Icons.dark_mode_outlined,
-                  title: 'الوضع الليلي',
-                  subtitle: 'تغيير مظهر التطبيق',
-                  value: context.watch<SettingsProvider>().isDarkMode,
-                  onChanged: (_) => context.read<SettingsProvider>().toggleDarkMode(),
-                ),
                 _NavigationTile(
                   icon: Icons.language,
                   title: 'اللغة',
@@ -156,23 +149,25 @@ class SettingsPage extends StatelessWidget {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              RadioListTile<String>(
-                value: 'ar',
-                groupValue: settings.language,
+              ListTile(
+                leading: Icon(
+                  settings.isArabic ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                  color: settings.isArabic ? AppTheme.orange : AppTheme.textLightMuted,
+                ),
                 title: const Text('العربية'),
-                activeColor: AppTheme.orange,
-                onChanged: (v) {
-                  settings.setLanguage(v!);
+                onTap: () {
+                  settings.setLanguage('ar');
                   Navigator.pop(context);
                 },
               ),
-              RadioListTile<String>(
-                value: 'en',
-                groupValue: settings.language,
+              ListTile(
+                leading: Icon(
+                  !settings.isArabic ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                  color: !settings.isArabic ? AppTheme.orange : AppTheme.textLightMuted,
+                ),
                 title: const Text('English'),
-                activeColor: AppTheme.orange,
-                onChanged: (v) {
-                  settings.setLanguage(v!);
+                onTap: () {
+                  settings.setLanguage('en');
                   Navigator.pop(context);
                 },
               ),

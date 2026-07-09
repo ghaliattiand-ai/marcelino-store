@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/models/store_product.dart';
 import '../../../../core/providers/cart_provider.dart';
 import '../../../../core/providers/favorites_provider.dart';
+import '../../../../core/data/tracking_service.dart';
 import '../../../../core/widgets/product_image.dart';
 
 const _navy = Color(0xFF0D1B3E);
@@ -27,6 +28,15 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
   List<String> get _gallery =>
       product.allImages.isNotEmpty ? product.allImages : [''];
+
+  @override
+  void initState() {
+    super.initState();
+    // تتبع مشاهدة المنتج (fire-and-forget)
+    if (product.id.isNotEmpty) {
+      TrackingService().trackProductView(product.id);
+    }
+  }
 
   void _addToCart({bool showMessage = true}) {
     HapticFeedback.lightImpact();
