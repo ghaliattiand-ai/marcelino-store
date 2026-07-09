@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "840074700643",
+    "project_id": "marcelino-1de36",
+    "storage_bucket": "marcelino-1de36.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:840074700643:android:bfcad1d6e238fafff89556",
+        "android_client_info": {
+          "package_name": "com.example.plumbing_store_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAwxMQ-NEo3rFQUuzYoHbtyfK3P8-RyAZo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

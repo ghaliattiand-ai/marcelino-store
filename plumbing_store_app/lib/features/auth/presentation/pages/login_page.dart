@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:plumbing_store_app/core/providers/auth_provider.dart';
 import 'register_page.dart';
+import 'otp_page.dart'; // ✅ جديد
 
-const _navy = Color(0xFF0D1B3E);
+const _navy   = Color(0xFF0D1B3E);
 const _orange = Color(0xFFFF6B00);
 
 class LoginPage extends StatefulWidget {
@@ -14,9 +15,9 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _phoneController = TextEditingController(text: '01012345678');
+  final _phoneController    = TextEditingController(text: '01012345678');
   final _passwordController = TextEditingController(text: '123456');
-  bool _obscure = true;
+  bool    _obscure = true;
   String? _error;
 
   @override
@@ -29,7 +30,7 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _login() async {
     setState(() => _error = null);
     final auth = context.read<AuthProvider>();
-    final ok = await auth.login(
+    final ok   = await auth.login(
       _phoneController.text.trim(),
       _passwordController.text,
     );
@@ -37,7 +38,8 @@ class _LoginPageState extends State<LoginPage> {
     if (ok) {
       Navigator.pop(context, true);
     } else {
-      setState(() => _error = auth.errorMessage ?? 'رقم الهاتف أو كلمة المرور غير صحيحة');
+      setState(() =>
+          _error = auth.errorMessage ?? 'رقم الهاتف أو كلمة المرور غير صحيحة');
     }
   }
 
@@ -61,6 +63,8 @@ class _LoginPageState extends State<LoginPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 20),
+
+              // ── Header card ──────────────────────────────
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
@@ -90,12 +94,16 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 6),
                     Text(
                       'مرحباً بعودتك!',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+                      style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7)),
                     ),
                   ],
                 ),
               ),
+
               const SizedBox(height: 28),
+
+              // ── حقل الهاتف ───────────────────────────────
               TextField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
@@ -111,7 +119,10 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
               ),
+
               const SizedBox(height: 14),
+
+              // ── حقل كلمة المرور ──────────────────────────
               TextField(
                 controller: _passwordController,
                 obscureText: _obscure,
@@ -120,7 +131,8 @@ class _LoginPageState extends State<LoginPage> {
                   labelText: 'كلمة المرور',
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
-                    icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
+                    icon: Icon(
+                        _obscure ? Icons.visibility_off : Icons.visibility),
                     onPressed: () => setState(() => _obscure = !_obscure),
                   ),
                   filled: true,
@@ -131,14 +143,15 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
               ),
+
+              // ── رسالة الخطأ ──────────────────────────────
               if (_error != null) ...[
                 const SizedBox(height: 12),
-                Text(
-                  _error!,
-                  style: const TextStyle(color: Colors.red),
-                  textAlign: TextAlign.center,
-                ),
+                Text(_error!,
+                    style: const TextStyle(color: Colors.red),
+                    textAlign: TextAlign.center),
               ],
+
               const SizedBox(height: 8),
               Align(
                 alignment: Alignment.centerLeft,
@@ -147,7 +160,10 @@ class _LoginPageState extends State<LoginPage> {
                   child: const Text('نسيت كلمة المرور؟'),
                 ),
               ),
-              const SizedBox(height: 16),
+
+              const SizedBox(height: 8),
+
+              // ── زرار دخول ────────────────────────────────
               SizedBox(
                 height: 52,
                 child: ElevatedButton(
@@ -156,25 +172,70 @@ class _LoginPageState extends State<LoginPage> {
                     backgroundColor: _orange,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                        borderRadius: BorderRadius.circular(14)),
                   ),
                   child: auth.isLoading
                       ? const SizedBox(
                           width: 24,
                           height: 24,
                           child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text(
-                          'دخول',
-                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                        ),
+                              color: Colors.white, strokeWidth: 2))
+                      : const Text('دخول',
+                          style: TextStyle(
+                              fontSize: 17, fontWeight: FontWeight.bold)),
                 ),
               ),
+
               const SizedBox(height: 16),
+
+              // ✅ جديد ── فاصل "أو" ────────────────────────
+              Row(
+                children: [
+                  const Expanded(child: Divider(thickness: 1)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      'أو',
+                      style: TextStyle(
+                          color: Colors.grey.shade500, fontSize: 13),
+                    ),
+                  ),
+                  const Expanded(child: Divider(thickness: 1)),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              // ✅ جديد ── زرار دخول بـ OTP ────────────────
+              SizedBox(
+                height: 52,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final ok = await Navigator.push<bool>(
+                      context,
+                      MaterialPageRoute(builder: (_) => const OtpPage()),
+                    );
+                    if (ok == true && mounted) Navigator.pop(context, true);
+                  },
+                  icon: const Icon(Icons.sms_outlined, color: _navy),
+                  label: const Text(
+                    'دخول برمز SMS',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: _navy),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: _navy, width: 1.5),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // ── الكود التجريبي ────────────────────────────
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -187,18 +248,20 @@ class _LoginPageState extends State<LoginPage> {
                   style: TextStyle(fontSize: 12, color: Color(0xFF1565C0)),
                 ),
               ),
+
               const SizedBox(height: 20),
+
+              // ── إنشاء حساب ───────────────────────────────
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text('ليس لديك حساب؟'),
                   TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const RegisterPage()),
-                      );
-                    },
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const RegisterPage()),
+                    ),
                     child: const Text('إنشاء حساب'),
                   ),
                 ],

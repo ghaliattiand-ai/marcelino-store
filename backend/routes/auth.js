@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Product = require('../models/Product');
 const Order = require('../models/Order');
 const { protect, admin } = require('../middleware/auth');
+const firebaseAdmin = require('../config/firebase'); // ✅ Firebase Admin
 
 const router = express.Router();
 
@@ -118,6 +119,89 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// @route   POST /api/auth/firebase-phone-login
+// @desc    تسجيل دخول أو تسجيل جديد عبر Firebase Phone Auth
+// @access  Public
+router.post('/firebase-phone-login', async (req, res) => {
+  try {
+    const { firebase_token } = req.body;
+
+    if (!firebase_token) {
+      return res.status(400).json({ message: 'firebase_token مطلوب' });
+    }
+
+    // ── 1) التحقق من التوكن عبر Firebase Admin ──────────────────────────
+    let decodedToken;
+    try {
+      decodedToken = await firebaseAdmin.auth().verifyIdToken(firebase_token);
+    } catch (firebaseError) {
+      console.error('Firebase token error:', firebaseError.message);
+      return res.status(401).json({ message: 'توكن Firebase غير صالح أو منتهي الصلاحية' });
+    }
+
+    const { phone_number, uid } = decodedToken;
+
+    // Firebase Phone Auth دايمًا بيبعت phone_number — لو مفيش يبقى في مشكلة
+    if (!phone_number) {
+      return res.status(400).json({ message: 'التوكن لا يحتوي على رقم هاتف' });
+    }
+
+    // ── 2) البحث عن المستخدم ─────────────────────────────────────────────
+    let user = await User.findOne({ phone: phone_number });
+    let isNewUser = false;
+
+    if (!user) {
+      // ── 3) مستخدم جديد — ننشئه ─────────────────────────────────────────
+      isNewUser = true;
+
+      // الـ email مطلوب في السكيما وفريد — نستخدم uid الفريد من Firebase
+      const placeholderEmail = `${uid}@firebase.marcelino`;
+
+      // باسورد عشوائي قوي (المستخدم مش هيستخدمه، دخوله عبر Firebase فقط)
+      const randomPassword =
+        Math.random().toString(36).slice(-6) +
+        Math.random().toString(36).toUpperCase().slice(-4) +
+        '!9';
+
+      // الاسم المؤقت — أطول من 3 أحرف كما يشترط السكيما
+      const tempName = `مستخدم ${phone_number.slice(-4)}`;
+
+      user = await User.create({
+        name: tempName,
+        email: placeholderEmail,
+        phone: phone_number,
+        password: randomPassword,
+        role: 'customer',
+      });
+    }
+
+    // ── 4) التحقق من أن الحساب غير محظور ────────────────────────────────
+    if (!user.isActive) {
+      return res.status(403).json({ message: 'الحساب محظور، تواصل مع الدعم' });
+    }
+
+    // ── 5) توليد JWT وإرجاع الرد ─────────────────────────────────────────
+    const token = generateToken(user._id);
+
+    res.status(isNewUser ? 201 : 200).json({
+      user: {
+        id:         user._id,
+        name:       user.name,
+        email:      user.email,
+        phone:      user.phone,
+        role:       user.role,
+        created_at: user.createdAt,
+        isNewUser,            // Flutter تستخدمه لتوجيه المستخدم لإكمال بياناته
+      },
+      token,
+    });
+
+  } catch (error) {
+    console.error('Firebase phone login error:', error);
+    res.status(500).json({ message: 'خطأ في تسجيل الدخول بالهاتف' });
+  }
+});
+
 // @route   POST /api/auth/logout
 // @access  Private
 router.post('/logout', protect, (req, res) => {
@@ -214,7 +298,6 @@ router.put('/change-password', protect, async (req, res) => {
 // @route   PUT /api/auth/admin/change-password
 // @access  Admin - الأدمن يغيّر كلمة مروره (نفس الـ change-password بس للأدمن)
 router.put('/admin/change-password', protect, admin, async (req, res) => {
-  // نفس المنطق - الفرق بس في الـ middleware
   try {
     const { currentPassword, newPassword } = req.body;
     if (!currentPassword || !newPassword) {

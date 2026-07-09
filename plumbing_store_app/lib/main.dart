@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart'; // ✅ جديد
 import 'package:plumbing_store_app/core/constants/app_constants.dart';
 import 'package:plumbing_store_app/core/theme/app_theme.dart';
 import 'package:plumbing_store_app/core/providers/cart_provider.dart';
@@ -18,6 +19,10 @@ import 'features/splash/presentation/pages/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+    await Firebase.initializeApp(); // ✅ جديد — لازم يكون أول حاجة
+
+  
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
