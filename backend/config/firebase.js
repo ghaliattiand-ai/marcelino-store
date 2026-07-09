@@ -1,7 +1,12 @@
 const admin = require('firebase-admin');
 
 // نتأكد إننا بنعمل initialize مرة واحدة بس
-if (!admin.apps.length) {
+// NOTE: firebase-admin@14 ما بيوفراش admin.apps - بنستعمل getApps() بدلها
+const _isInitialized = (typeof admin.getApps === 'function')
+  ? admin.getApps().length > 0
+  : (Array.isArray(admin.apps) ? admin.apps.length > 0 : false);
+
+if (!_isInitialized) {
   if (
     !process.env.FIREBASE_PROJECT_ID ||
     !process.env.FIREBASE_CLIENT_EMAIL ||
