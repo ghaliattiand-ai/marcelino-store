@@ -18,8 +18,16 @@ if (!_isInitialized) {
     );
   }
 
+  // NOTE: firebase-admin@14 غيّرت الـ API:
+  //   - القديم: admin.credential.cert({...})
+  //   - الجديد: admin.cert({...})
+  // نستعمل الـ API المتوفر ونحط fallback للقديم
+  const certFn = typeof admin.cert === 'function'
+    ? admin.cert
+    : (admin.credential && admin.credential.cert);
+
   admin.initializeApp({
-    credential: admin.credential.cert({
+    credential: certFn({
       projectId:   process.env.FIREBASE_PROJECT_ID,
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
       // الـ .env بيحفظ \n كـ نص — نحوّلها لـ newline حقيقي
