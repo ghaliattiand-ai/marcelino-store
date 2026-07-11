@@ -333,6 +333,21 @@ let salesChartInstance = null;
 let categoriesChartInstance = null;
 let appOpensChartInstance = null;
 
+// ===== Sidebar (تابلت) =====
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  if (!sidebar || !overlay) return;
+  const isOpen = sidebar.classList.toggle('open');
+  overlay.classList.toggle('open', isOpen);
+}
+function closeSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  if (sidebar) sidebar.classList.remove('open');
+  if (overlay) overlay.classList.remove('open');
+}
+
 function showSection(name) {
   document.querySelectorAll('.content-section').forEach((s) => s.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
@@ -357,6 +372,9 @@ function showSection(name) {
   if (name === 'chats') loadChats();
   if (name === 'appUsage') loadAppUsage('daily');
   if (name === 'settings') loadSettings();
+
+  // نقفل الـ sidebar على التابلت بعد اختيار قسم
+  closeSidebar();
 }
 
 // ===== Dashboard =====

@@ -26,8 +26,10 @@
 
   <!-- التطبيق -->
   <div id="app" class="app hidden">
+    <!-- overlay خلف الـ sidebar على التابلت -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
     <!-- الشريط الجانبي -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
       <div class="sidebar-logo">
         <span class="logo-icon">🏪</span>
         <span class="logo-text">MARCELINO</span>
@@ -51,7 +53,10 @@
     <!-- المحتوى -->
     <main class="main">
       <header class="topbar">
-        <h2 id="pageTitle">الرئيسية</h2>
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="hamburger-btn" onclick="toggleSidebar()" title="القائمة">☰</button>
+          <h2 id="pageTitle">الرئيسية</h2>
+        </div>
         <div class="topbar-actions">
           <button class="icon-btn" id="notifBtn" onclick="toggleNotifications()" title="تنبيهات المخزون">🔔<span class="notification-badge" id="notifBadge" style="display:none">0</span></button>
           <button class="icon-btn" id="darkModeToggle" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
