@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MARCELINO - لوحة التحكم</title>
+  <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- شاشة تسجيل الدخول -->
+  <div id="loginScreen" class="login-screen">
+    <div class="login-card">
+      <div class="login-logo">🏪</div>
+      <h1>MARCELINO</h1>
+      <p>لوحة تحكم المتجر</p>
+      <input type="text" id="loginPhone" placeholder="رقم الهاتف" value="01110140517">
+      <input type="password" id="loginPassword" placeholder="كلمة المرور" value="sameh123">
+      <button onclick="login()" class="btn-primary">تسجيل الدخول</button>
+      <div id="loginError" class="error-msg"></div>
+    </div>
+  </div>
+
+  <!-- التطبيق -->
+  <div id="app" class="app hidden">
+    <!-- overlay خلف الـ sidebar على التابلت -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+    <!-- الشريط الجانبي -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <span class="logo-icon">🏪</span>
+        <span class="logo-text">MARCELINO</span>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="nav-btn active" onclick="showSection('dashboard')">📊 الرئيسية</button>
+        <button class="nav-btn" onclick="showSection('products')">📦 المنتجات</button>
+        <button class="nav-btn" onclick="showSection('categories')">📂 الأقسام</button>
+        <button class="nav-btn" onclick="showSection('orders')">🛒 الطلبات</button>
+        <button class="nav-btn" onclick="showSection('coupons')">🎟️ الكوبونات</button>
+        <button class="nav-btn" onclick="showSection('banners')">🖼️ الإعلانات</button>
+        <button class="nav-btn" onclick="showSection('users')">👥 المستخدمين</button>
+        <button class="nav-btn" onclick="showSection('analytics')">📊 التحليلات</button>
+        <button class="nav-btn" onclick="showSection('chats')">💬 محادثات المساعد</button>
+        <button class="nav-btn" onclick="showSection('appUsage')">📈 الاستخدام والمنتجات</button>
+        <button class="nav-btn" onclick="showSection('settings')">⚙️ الإعدادات</button>
+      </nav>
+      <button class="logout-btn" onclick="logout()">🚪 تسجيل الخروج</button>
+    </aside>
+
+    <!-- المحتوى -->
+    <main class="main">
+      <header class="topbar">
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="hamburger-btn" onclick="toggleSidebar()" title="القائمة">☰</button>
+          <h2 id="pageTitle">الرئيسية</h2>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-btn" id="notifBtn" onclick="toggleNotifications()" title="تنبيهات المخزون">🔔<span class="notification-badge" id="notifBadge" style="display:none">0</span></button>
+          <button class="icon-btn" id="darkModeToggle" onclick="toggleDarkMode()" title="الوضع الليلي">🌙</button>
+          <div class="notification-dropdown" id="notifDropdown">
+            <div class="notification-dropdown-header">⚠️ منتجات قاربت على النفاد</div>
+            <div id="notifList"></div>
+          </div>
+          <div class="user-info">
+            <span id="adminName">Admin</span>
+            <div class="user-avatar">A</div>
+          </div>
+        </div>
+      </header>
+
+      <!-- لوحة المعلومات -->
+      <section id="dashboard" class="content-section active">
+        <div class="stats-grid">
+          <div class="stat-card stat-blue">
+            <div class="stat-icon">📦</div>
+            <div class="stat-info">
+              <div class="stat-number" id="statProducts">0</div>
+              <div class="stat-label">المنتجات</div>
+            </div>
+          </div>
+          <div class="stat-card stat-orange">
+            <div class="stat-icon">🛒</div>
+            <div class="stat-info">
+              <div class="stat-number" id="statOrders">0</div>
+              <div class="stat-label">الطلبات</div>
+            </div>
+          </div>
+          <div class="stat-card stat-green">
+            <div class="stat-icon">💰</div>
+            <div class="stat-info">
+              <div class="stat-number" id="statRevenue">0</div>
+              <div class="stat-label">الإيرادات (جنيه)</div>
+            </div>
+          </div>
+          <div class="stat-card stat-purple">
+            <div class="stat-icon">👥</div>
+            <div class="stat-info">
+              <div class="stat-number" id="statUsers">0</div>
+              <div class="stat-label">المستخدمين</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-row">
+          <div class="dashboard-card">
+            <h3>📊 أحدث الطلبات</h3>
+            <div id="recentOrders" class="recent-list"></div>
+          </div>
+          <div class="dashboard-card">
+            <h3>🏆 الأكثر مبيعاً</h3>
+            <div id="topProducts" class="recent-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- المنتجات -->
+      <section id="products" class="content-section">
+        <div class="section-header">
+          <input type="text" id="productSearch" placeholder="بحث عن منتج..." oninput="loadProducts()">
+          <div style="display:flex;gap:8px">
+            <button class="btn-success" onclick="exportCSV('products')">📥 CSV</button>
+            <button class="btn-primary" onclick="openProductModal()">➕ إضافة منتج</button>
+          </div>
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>الصورة</th>
+                <th>الاسم</th>
+                <th>القسم</th>
+                <th>السعر</th>
+                <th>الكمية</th>
+                <th>مميز</th>
+                <th>الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="productsTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- الأقسام -->
+      <section id="categories" class="content-section">
+        <div class="section-header">
+          <h3></h3>
+          <button class="btn-primary" onclick="openCategoryModal()">➕ إضافة قسم</button>
+        </div>
+        <div class="categories-grid" id="categoriesGrid"></div>
+      </section>
+
+      <!-- الطلبات -->
+      <section id="orders" class="content-section">
+        <div class="section-header">
+          <select id="orderFilter" onchange="loadOrders()">
+            <option value="">كل الطلبات</option>
+            <option value="pending">قيد المراجعة</option>
+            <option value="processing">جاري التجهيز</option>
+            <option value="delivered">تم التوصيل</option>
+            <option value="cancelled">ملغي</option>
+          </select>
+          <button class="btn-success" onclick="exportCSV('orders')">📥 تصدير CSV</button>
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>رقم الطلب</th>
+                <th>العميل</th>
+                <th>الهاتف</th>
+                <th>المبلغ</th>
+                <th>طريقة الدفع</th>
+                <th>الحالة</th>
+                <th>التاريخ</th>
+                <th>الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="ordersTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- الكوبونات -->
+      <section id="coupons" class="content-section">
+        <div class="section-header">
+          <h3></h3>
+          <button class="btn-primary" onclick="openCouponModal()">➕ إضافة كوبون</button>
+        </div>
+        <div class="coupons-grid" id="couponsGrid"></div>
+      </section>
+
+      <!-- الإعلانات -->
+      <section id="banners" class="content-section">
+        <div class="section-header">
+          <h3></h3>
+          <button class="btn-primary" onclick="openBannerModal()">➕ إضافة إعلان</button>
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>الصورة</th>
+                <th>العنوان</th>
+                <th>المنتج المرتبط</th>
+                <th>الترتيب</th>
+                <th>الحالة</th>
+                <th>الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="bannersTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- المستخدمين -->
+      <section id="users" class="content-section">
+        <div class="section-header">
+          <input type="text" id="userSearch" placeholder="بحث عن مستخدم..." oninput="loadUsers()">
+          <button class="btn-success" onclick="exportCSV('users')">📥 تصدير CSV</button>
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>الاسم</th>
+                <th>البريد الإلكتروني</th>
+                <th>الهاتف</th>
+                <th>الحالة</th>
+                <th>عدد الطلبات</th>
+                <th>تاريخ التسجيل</th>
+                <th>الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="usersTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- التحليلات -->
+      <section id="analytics" class="content-section">
+        <div class="analytics-grid">
+          <div class="chart-container">
+            <div class="chart-header">
+              <h3>📈 المبيعات</h3>
+              <div class="period-toggle">
+                <button id="periodDaily" class="active" onclick="loadAnalytics('daily')">يومي</button>
+                <button id="periodMonthly" onclick="loadAnalytics('monthly')">شهري</button>
+              </div>
+            </div>
+            <div class="chart-wrapper"><canvas id="salesChart"></canvas></div>
+          </div>
+          <div class="chart-container">
+            <div class="chart-header">
+              <h3>🏷️ أكثر الأقسام مبيعاً</h3>
+            </div>
+            <div class="chart-wrapper"><canvas id="categoriesChart"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- محادثات المساعد -->
+      <section id="chats" class="content-section">
+        <div class="section-header">
+          <h3>آخر محادثات العملاء مع المساعد الذكي</h3>
+          <button class="btn-secondary" onclick="loadChats()">تحديث</button>
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>العميل</th>
+                <th>عنوان المحادثة</th>
+                <th>عدد الرسائل</th>
+                <th>آخر تحديث</th>
+                <th>الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="chatsTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- الاستخدام والمنتجات الأكثر مشاهدة -->
+      <section id="appUsage" class="content-section">
+        <div class="stats-grid">
+          <div class="stat-card stat-blue">
+            <div class="stat-icon">هاتف</div>
+            <div class="stat-info">
+              <div class="stat-number" id="statTotalOpens">0</div>
+              <div class="stat-label">إجمالي الدخول للتطبيق</div>
+            </div>
+          </div>
+          <div class="stat-card stat-orange">
+            <div class="stat-icon">تاريخ</div>
+            <div class="stat-info">
+              <div class="stat-number" id="statOpensToday">0</div>
+              <div class="stat-label">دخول اليوم</div>
+            </div>
+          </div>
+          <div class="stat-card stat-green">
+            <div class="stat-icon">ناس</div>
+            <div class="stat-info">
+              <div class="stat-number" id="statActiveUsers">0</div>
+              <div class="stat-label">مستخدمين نشطين (30 يوم)</div>
+            </div>
+          </div>
+          <div class="stat-card stat-purple">
+            <div class="stat-icon">عين</div>
+            <div class="stat-info">
+              <div class="stat-number" id="statProductViews">0</div>
+              <div class="stat-label">إجمالي مشاهدة المنتجات</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-row">
+          <div class="dashboard-card">
+            <div class="chart-header">
+              <h3>دخول التطبيق</h3>
+              <div class="period-toggle">
+                <button id="usagePeriodDaily" class="active" onclick="loadAppUsage('daily')">يومي</button>
+                <button id="usagePeriodMonthly" onclick="loadAppUsage('monthly')">شهري</button>
+              </div>
+            </div>
+            <div class="chart-wrapper"><canvas id="appOpensChart"></canvas></div>
+          </div>
+          <div class="dashboard-card">
+            <h3>أكثر المنتجات مشاهدة</h3>
+            <div id="topProductsViews" class="recent-list"></div>
+          </div>
+        </div>
+      </section>
+        <div class="settings-grid">
+          <div class="settings-card">
+            <h3>🏪 بيانات المتجر</h3>
+            <div class="form-group">
+              <label>اسم المتجر</label>
+              <input type="text" id="setStoreName" placeholder="MARCELINO">
+            </div>
+            <div class="form-group">
+              <label>العملة</label>
+              <input type="text" id="setCurrency" placeholder="ج.م">
+            </div>
+            <div class="form-group">
+              <label>رسالة الترحيب (تظهر في التطبيق)</label>
+              <input type="text" id="setWelcome" placeholder="كل ما تحتاجه في مكان واحد">
+            </div>
+          </div>
+          <div class="settings-card">
+            <h3>🚚 إعدادات الشحن</h3>
+            <div class="form-group">
+              <label>رسوم الشحن (جنيه)</label>
+              <input type="number" id="setShippingFee" step="0.01" value="30">
+            </div>
+            <div class="form-group">
+              <label>حد الشحن المجاني (جنيه)</label>
+              <input type="number" id="setFreeShipping" step="0.01" value="500">
+            </div>
+            <div class="form-group">
+              <label>ملاحظة الشحن</label>
+              <input type="text" id="setShippingNote" placeholder="الشحن خلال 2-4 أيام عمل">
+            </div>
+          </div>
+          <div class="settings-card">
+            <h3>📞 بيانات التواصل</h3>
+            <div class="form-group">
+              <label>تليفون التواصل</label>
+              <input type="text" id="setContactPhone" placeholder="01000000000">
+            </div>
+            <div class="form-group">
+              <label>إيميل التواصل</label>
+              <input type="email" id="setContactEmail" placeholder="info@marcelino.com">
+            </div>
+          </div>
+          <div class="settings-card">
+            <h3>📦 تنبيهات المخزون</h3>
+            <div class="form-group">
+              <label>حد تنبيه نفاذ المخزون</label>
+              <input type="number" id="setLowStock" value="5" min="0">
+              <small style="color:var(--text-muted)">يتم تنبيهك عند وصول مخزون أي منتج لهذا الحد</small>
+            </div>
+            <div class="settings-actions">
+              <button class="btn-primary" onclick="saveSettings()">💾 حفظ الإعدادات</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-card" style="margin-top:20px">
+          <h3>💳 طرق الدفع وواتساب المتجر</h3>
+          <small style="color:var(--text-muted);display:block;margin-bottom:14px">
+            البيانات دي بتظهر للعملاء في تطبيق الموبايل وقت الدفع. ضيفها مرة واحدة وتقدر تعدلها أي وقت.
+          </small>
+          <div class="form-grid">
+            <div class="form-group" style="grid-column:1/-1">
+              <label>📱 رقم واتساب المتجر (لطلبات الدفع عند الاستلام)</label>
+              <input type="text" id="setWhatsapp" placeholder="01012345678" dir="ltr">
+            </div>
+          </div>
+
+          <h4 style="margin:16px 0 10px;color:#1565C0">📱 اتصالات كاش</h4>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>رقم المحفظة</label>
+              <input type="text" id="setEtisalatNumber" placeholder="01012345678" dir="ltr">
+            </div>
+            <div class="form-group">
+              <label>اسم صاحب المحفظة</label>
+              <input type="text" id="setEtisalatName" placeholder="الاسم بالكامل">
+            </div>
+          </div>
+
+          <h4 style="margin:16px 0 10px;color:#6A1B9A">⚡ إنستا باي</h4>
+          <div class="form-grid">
+            <div class="form-group" style="grid-column:1/-1">
+              <label>معال إنستا باي (InstaPay Handle)</label>
+              <input type="text" id="setInstapay" placeholder="name@instapay" dir="ltr">
+            </div>
+          </div>
+
+          <h4 style="margin:16px 0 10px;color:#455A64">🏦 حساب بنكي</h4>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>اسم البنك</label>
+              <input type="text" id="setBankName" placeholder="بنك مصر">
+            </div>
+            <div class="form-group">
+              <label>اسم صاحب الحساب</label>
+              <input type="text" id="setBankAccountName" placeholder="الاسم بالكامل">
+            </div>
+            <div class="form-group" style="grid-column:1/-1">
+              <label>رقم الحساب</label>
+              <input type="text" id="setBankAccountNumber" placeholder="000000000000" dir="ltr">
+            </div>
+          </div>
+          <div class="settings-actions">
+            <button class="btn-primary" onclick="saveSettings()">💾 حفظ بيانات الدفع</button>
+          </div>
+        </div>
+
+        <div class="settings-card" style="margin-top:20px">
+          <h3>🔐 تغيير كلمة مرور الأدمن</h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>كلمة المرور الحالية</label>
+              <input type="password" id="curAdminPassword" placeholder="••••••••">
+            </div>
+            <div class="form-group">
+              <label>كلمة المرور الجديدة</label>
+              <input type="password" id="newAdminPassword" placeholder="••••••••">
+            </div>
+          </div>
+          <div class="settings-actions">
+            <button class="btn-warning" onclick="changeAdminPassword()">🔄 تغيير كلمة المرور</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal: إضافة/تعديل منتج -->
+  <div id="productModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h3 id="productModalTitle">إضافة منتج جديد</h3>
+        <button onclick="closeModal('productModal')" class="close-btn">✕</button>
+      </div>
+      <form id="productForm" onsubmit="saveProduct(event)">
+        <input type="hidden" id="productId">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>الاسم (عربي) *</label>
+            <input type="text" id="pNameAr" required>
+          </div>
+          <div class="form-group">
+            <label>الاسم (إنجليزي) *</label>
+            <input type="text" id="pNameEn" required>
+          </div>
+          <div class="form-group">
+            <label>القسم *</label>
+            <select id="pCategory" required></select>
+          </div>
+          <div class="form-group">
+            <label>السعر (جنيه) *</label>
+            <input type="number" id="pPrice" step="0.01" required>
+          </div>
+          <div class="form-group">
+            <label>سعر الخصم</label>
+            <input type="number" id="pDiscountPrice" step="0.01">
+          </div>
+          <div class="form-group">
+            <label>الكمية *</label>
+            <input type="number" id="pStock" required>
+          </div>
+          <div class="form-group">
+            <label>الوحدة</label>
+            <select id="pUnit">
+              <option value="piece">قطعة</option>
+              <option value="meter">متر</option>
+              <option value="kg">كجم</option>
+              <option value="liter">لتر</option>
+              <option value="gallon">جالون</option>
+              <option value="box">علبة</option>
+              <option value="pack">عبوة</option>
+              <option value="set">طقم</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>التقييم (0-5)</label>
+            <input type="number" id="pRating" step="0.1" min="0" max="5" value="4.5">
+          </div>
+          <div class="form-group">
+            <label>اللون hex</label>
+            <input type="text" id="pColor" value="#1565C0">
+          </div>
+          <div class="form-group">
+            <label>الأيقونة (Material Icon)</label>
+            <input type="text" id="pIcon" value="inventory_2">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>الوصف</label>
+          <textarea id="pDescription" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label>المواصفات (JSON)</label>
+          <textarea id="pSpecs" rows="3" placeholder='{"القوة": "1 حصان", "الجهد": "220 فولت"}'></textarea>
+        </div>
+        <div class="form-group">
+          <label>صور المنتج (اختر حتى 5 صور)</label>
+          <input type="file" id="pImages" multiple accept="image/*">
+          <div id="currentImages" class="current-images"></div>
+        </div>
+        <div class="form-group">
+          <label><input type="checkbox" id="pFeatured"> منتج مميز</label>
+        </div>
+        <div class="modal-footer">
+          <button type="button" onclick="closeModal('productModal')" class="btn-secondary">إلغاء</button>
+          <button type="submit" class="btn-primary">حفظ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: إضافة/تعديل قسم -->
+  <div id="categoryModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="categoryModalTitle">إضافة قسم جديد</h3>
+        <button onclick="closeModal('categoryModal')" class="close-btn">✕</button>
+      </div>
+      <form id="categoryForm" onsubmit="saveCategory(event)">
+        <input type="hidden" id="categoryId">
+        <div class="form-group">
+          <label>الاسم (عربي) *</label>
+          <input type="text" id="cNameAr" required>
+        </div>
+        <div class="form-group">
+          <label>الاسم (إنجليزي) *</label>
+          <input type="text" id="cNameEn" required>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>الأيقونة *</label>
+            <input type="text" id="cIcon" required value="category">
+          </div>
+          <div class="form-group">
+            <label>اللون hex *</label>
+            <input type="text" id="cColor" required value="#1565C0">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>الوصف</label>
+          <textarea id="cDescription" rows="2"></textarea>
+        </div>
+        <div class="form-group">
+          <label>الترتيب</label>
+          <input type="number" id="cOrder" value="0">
+        </div>
+        <div class="modal-footer">
+          <button type="button" onclick="closeModal('categoryModal')" class="btn-secondary">إلغاء</button>
+          <button type="submit" class="btn-primary">حفظ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: إضافة كوبون -->
+  <div id="couponModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="couponModalTitle">إضافة كوبون</h3>
+        <button onclick="closeModal('couponModal')" class="close-btn">✕</button>
+      </div>
+      <form id="couponForm" onsubmit="saveCoupon(event)">
+        <input type="hidden" id="couponId">
+        <div class="form-group">
+          <label>كود الكوبون *</label>
+          <input type="text" id="cuCode" required style="text-transform:uppercase">
+        </div>
+        <div class="form-group">
+          <label>الوصف *</label>
+          <textarea id="cuDescription" required rows="2"></textarea>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>قيمة الخصم *</label>
+            <input type="number" id="cuDiscount" step="0.01" required>
+          </div>
+          <div class="form-group">
+            <label>النوع *</label>
+            <select id="cuType" required>
+              <option value="percent">نسبة %</option>
+              <option value="fixed">مبلغ ثابت</option>
+              <option value="shipping">شحن مجاني</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>الحد الأدنى للطلب</label>
+            <input type="number" id="cuMinOrder" value="0">
+          </div>
+          <div class="form-group">
+            <label>تاريخ الانتهاء *</label>
+            <input type="date" id="cuExpiresAt" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label><input type="checkbox" id="cuActive" checked> نشط</label>
+        </div>
+        <div class="modal-footer">
+          <button type="button" onclick="closeModal('couponModal')" class="btn-secondary">إلغاء</button>
+          <button type="submit" class="btn-primary">حفظ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: إضافة/تعديل إعلان -->
+  <div id="bannerModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="bannerModalTitle">إضافة إعلان جديد</h3>
+        <button onclick="closeModal('bannerModal')" class="close-btn">✕</button>
+      </div>
+      <form id="bannerForm" onsubmit="saveBanner(event)">
+        <input type="hidden" id="bannerId">
+        <input type="hidden" id="bannerFolder" value="banners">
+        <div class="form-group">
+          <label>عنوان الإعلان *</label>
+          <input type="text" id="bTitle" required placeholder="مثال: خصم 20% على أدوات السباكة">
+        </div>
+        <div class="form-group">
+          <label>النص الفرعي</label>
+          <input type="text" id="bSubtitle" placeholder="مثال: لفترة محدودة">
+        </div>
+        <div class="form-group">
+          <label>المنتج المرتبط (اختياري)</label>
+          <select id="bProduct">
+            <option value="">— بدون رابط لمنتج —</option>
+          </select>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>الترتيب</label>
+            <input type="number" id="bOrder" value="0">
+          </div>
+          <div class="form-group">
+            <label>الحالة</label>
+            <select id="bActive">
+              <option value="true">نشط</option>
+              <option value="false">معطل</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>صورة الإعلان *</label>
+          <input type="file" id="bImage" accept="image/*">
+          <div id="currentBannerImage" class="current-images"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" onclick="closeModal('bannerModal')" class="btn-secondary">إلغاء</button>
+          <button type="submit" class="btn-primary">حفظ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: تفاصيل/تعديل المستخدم -->
+  <div id="userModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h3 id="userModalTitle">تفاصيل المستخدم</h3>
+        <button onclick="closeModal('userModal')" class="close-btn">✕</button>
+      </div>
+      <div id="userDetails"></div>
+    </div>
+  </div>
+
+  <!-- Modal: تفاصيل الطلب -->
+  <div id="orderModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h3>تفاصيل الطلب</h3>
+        <button onclick="closeModal('orderModal')" class="close-btn">✕</button>
+      </div>
+      <div id="orderDetails"></div>
+    </div>
+  </div>
+
+  <!-- Modal: الفاتورة (للطباعة) -->
+  <div id="invoiceModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h3>فاتورة الطلب</h3>
+        <div style="display:flex;gap:8px">
+          <button onclick="closeModal('invoiceModal')" class="btn-secondary">إغلاق</button>
+          <button onclick="window.print()" class="btn-primary">🖨️ طباعة</button>
+        </div>
+      </div>
+      <div id="invoiceContent"></div>
+    </div>
+  </div>
+
+  <!-- Modal: محادثة المساعد -->
+  <div id="chatModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h3 id="chatModalTitle">محادثة المساعد</h3>
+        <button onclick="closeModal('chatModal')" class="close-btn">إغلاق</button>
+      </div>
+      <div id="chatConversationBody"></div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
