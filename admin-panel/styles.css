@@ -416,14 +416,19 @@ body {
   font-size: 24px;
   flex-shrink: 0;
   line-height: 1;
-  overflow: hidden;           /* FIX: يمنع نص الأيقونة من الخروج */
+  
+  overflow: hidden;
+  padding: 0 3px;           /* FIX: يمنع نص الأيقونة من الخروج */
 }
 .category-icon-wrap span {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;              /* FIX: كان flex — لازم block عشان text-overflow يشتغل */
+  width: 100%;
+  text-align: center;
   font-size: 24px;
-  line-height: 1;
+  line-height: 1.15;
+  white-space: nowrap;         /* FIX: يمنع لف النص لأكتر من سطر */
+  overflow: hidden;
+  text-overflow: ellipsis;     /* FIX: "..." بدل ما الكلمة تتقطع نص حرف */
 }
 
 /* رأس الكارت: الأيقونة جنب الأسماء — FIX: أضفنا min-width:0 */
