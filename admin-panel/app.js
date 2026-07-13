@@ -605,11 +605,16 @@ async function loadCategories() {
 
     grid.innerHTML = cats.map((c) => `
       <div class="category-card">
-        <div class="category-icon-wrap" style="background:${escapeHtml(c.color)}20;color:${escapeHtml(c.color)}">
-          <span>${escapeHtml(c.icon || '📂')}</span>
+        <div class="category-head">
+          <div class="category-icon-wrap" style="background:${escapeHtml(c.color)}20;color:${escapeHtml(c.color)}">
+            <span>${escapeHtml(c.icon || '📂')}</span>
+          </div>
+          <div class="category-titles">
+            <h4>${escapeHtml(c.nameAr || '')}</h4>
+            ${c.nameEn ? `<span class="category-name-en">${escapeHtml(c.nameEn)}</span>` : ''}
+          </div>
         </div>
-        <h4>${escapeHtml(c.nameAr || '')}</h4>
-        <p>${escapeHtml(c.nameEn || '')} - ${escapeHtml(c.description || '')}</p>
+        ${c.description ? `<p class="category-desc">${escapeHtml(c.description)}</p>` : '<p class="category-desc empty">— لا يوجد وصف</p>'}
         <div class="action-btns">
           <button class="action-btn btn-edit" onclick="editCategory('${c._id}')">تعديل</button>
           <button class="action-btn btn-delete" onclick="deleteCategory('${c._id}')">حذف</button>
