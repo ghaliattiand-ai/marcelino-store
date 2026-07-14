@@ -7,6 +7,8 @@
   <link rel="stylesheet" href="styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -553,6 +555,8 @@
       </div>
       <form id="categoryForm" onsubmit="saveCategory(event)">
         <input type="hidden" id="categoryId">
+        <input type="hidden" id="cIcon" value="category">
+        <input type="hidden" id="cRemoveIconImage" value="0">
         <div class="form-group">
           <label>الاسم (عربي) *</label>
           <input type="text" id="cNameAr" required>
@@ -561,16 +565,27 @@
           <label>الاسم (إنجليزي) *</label>
           <input type="text" id="cNameEn" required>
         </div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>الأيقونة *</label>
-            <input type="text" id="cIcon" required value="category">
-          </div>
-          <div class="form-group">
-            <label>اللون hex *</label>
-            <input type="text" id="cColor" required value="#1565C0">
-          </div>
+        <div class="form-group">
+          <label>اللون hex *</label>
+          <input type="text" id="cColor" required value="#1565C0">
         </div>
+
+        <!-- الأيقونة: اختيار من القائمة أو رفع صورة -->
+        <div class="form-group">
+          <label>أيقونة القسم (اختر من القائمة)</label>
+          <div id="categoryIconPicker" class="icon-picker"></div>
+        </div>
+
+        <div class="form-group">
+          <label>أو ارفع صورة أيقونة من جهازك</label>
+          <div class="icon-upload-row">
+            <input type="file" id="cIconImage" accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml" style="display:none" onchange="onCategoryIconImageChange(this)">
+            <button type="button" class="btn-secondary btn-sm" onclick="document.getElementById('cIconImage').click()">📁 اختيار صورة</button>
+          </div>
+          <div id="currentCategoryIcon" class="current-images"></div>
+          <small style="color:var(--text-muted)">يفضّل صورة مربعة (مثل 256×256). لو رفعت صورة، ستظهر بدل الأيقونة في التطبيق.</small>
+        </div>
+
         <div class="form-group">
           <label>الوصف</label>
           <textarea id="cDescription" rows="2"></textarea>

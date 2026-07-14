@@ -591,6 +591,69 @@ async function deleteProduct(id) {
 }
 
 // ===== Categories =====
+
+// قائمة أيقونات Material مناسبة لمتجر سباكة وحدايد وبويات
+const CATEGORY_ICONS = [
+  'category', 'water_drop', 'plumbing', 'flash_on', 'electric_bolt', 'electrical_services',
+  'lightbulb', 'handyman', 'build', 'construction', 'hardware', 'home_repair_service',
+  'precision_manufacturing', 'format_paint', 'brush', 'inventory_2', 'settings', 'more_horiz',
+  'cleaning_services', 'ac_unit', 'thermostat', 'door_front', 'window', 'keys',
+  'chair', 'grass', 'agriculture', 'roofing', 'straighten', 'forest',
+];
+
+// يرسم شبكة الأيقونات القابلة للاختيار ويحدد المختار حالياً
+function renderCategoryIconPicker(selected) {
+  const wrap = document.getElementById('categoryIconPicker');
+  if (!wrap) return;
+  wrap.innerHTML = CATEGORY_ICONS.map((name) => `
+    <button type="button" class="icon-chip ${name === selected ? 'selected' : ''}"
+            onclick="selectCategoryIcon('${name}')" title="${name}">
+      <span class="material-icons-round">${name}</span>
+    </button>
+  `).join('');
+}
+
+// اختيار أيقونة من القائمة
+function selectCategoryIcon(name) {
+  document.getElementById('cIcon').value = name;
+  renderCategoryIconPicker(name);
+}
+
+// عرض صورة الأيقونة (المرفوعة أو الحالية) داخل منطقة المعاينة
+function renderCategoryIconPreview(src) {
+  const box = document.getElementById('currentCategoryIcon');
+  if (!box) return;
+  if (src) {
+    box.innerHTML = `
+      <div class="cat-icon-preview">
+        <img src="${src}" alt="أيقونة القسم">
+        <button type="button" class="cat-icon-remove" onclick="removeCategoryIconImage()" title="حذف الصورة">✕</button>
+      </div>
+    `;
+  } else {
+    box.innerHTML = '';
+  }
+}
+
+// عند اختيار ملف صورة جديد من الجهاز
+function onCategoryIconImageChange(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  // معاينة محلية فورية
+  const reader = new FileReader();
+  reader.onload = (e) => renderCategoryIconPreview(e.target.result);
+  reader.readAsDataURL(file);
+  // لما نرفع صورة جديدة، نلغي أي طلب حذف سابق
+  document.getElementById('cRemoveIconImage').value = '0';
+}
+
+// حذف صورة الأيقونة (الموجودة حالياً) — نرفع علم الحذف ونفضي المعاينة
+function removeCategoryIconImage() {
+  document.getElementById('cIconImage').value = '';
+  document.getElementById('cRemoveIconImage').value = '1';
+  renderCategoryIconPreview('');
+}
+
 async function loadCategories() {
   try {
     const data = await api('/categories');
@@ -607,7 +670,9 @@ async function loadCategories() {
       <div class="category-card">
         <div class="category-head">
           <div class="category-icon-wrap" style="background:${escapeHtml(c.color)}20;color:${escapeHtml(c.color)}">
-            <span>${escapeHtml(c.icon || '📂')}</span>
+            ${c.imageUrl
+              ? `<img src="${escapeHtml(c.imageUrl)}" class="category-icon-img" alt="${escapeHtml(c.nameAr || '')}">`
+              : `<span>${escapeHtml(c.icon || 'category')}</span>`}
           </div>
           <div class="category-titles">
             <h4>${escapeHtml(c.nameAr || '')}</h4>
@@ -629,6 +694,11 @@ async function loadCategories() {
 function openCategoryModal() {
   document.getElementById('categoryForm').reset();
   document.getElementById('categoryId').value = '';
+  document.getElementById('cIcon').value = 'category';
+  document.getElementById('cRemoveIconImage').value = '0';
+  document.getElementById('cColor').value = '#1565C0';
+  renderCategoryIconPicker('category');
+  renderCategoryIconPreview('');
   document.getElementById('categoryModalTitle').textContent = 'إضافة قسم جديد';
   showModal('categoryModal');
 }
@@ -640,10 +710,14 @@ async function editCategory(id) {
     document.getElementById('categoryId').value = c._id;
     document.getElementById('cNameAr').value = c.nameAr;
     document.getElementById('cNameEn').value = c.nameEn;
-    document.getElementById('cIcon').value = c.icon;
+    document.getElementById('cIcon').value = c.icon || 'category';
     document.getElementById('cColor').value = c.color;
     document.getElementById('cDescription').value = c.description || '';
     document.getElementById('cOrder').value = c.order || 0;
+    document.getElementById('cRemoveIconImage').value = '0';
+    document.getElementById('cIconImage').value = '';
+    renderCategoryIconPicker(c.icon || 'category');
+    renderCategoryIconPreview(c.imageUrl || '');
     document.getElementById('categoryModalTitle').textContent = 'تعديل القسم';
     showModal('categoryModal');
   } catch (err) {
@@ -654,17 +728,41 @@ async function editCategory(id) {
 async function saveCategory(event) {
   event.preventDefault();
   const id = document.getElementById('categoryId').value;
-  const body = {
-    nameAr: document.getElementById('cNameAr').value,
-    nameEn: document.getElementById('cNameEn').value,
-    icon: document.getElementById('cIcon').value,
-    color: document.getElementById('cColor').value,
-    description: document.getElementById('cDescription').value,
-    order: parseInt(document.getElementById('cOrder').value) || 0,
-  };
+  const fileInput = document.getElementById('cIconImage');
+  const hasNewImage = fileInput.files && fileInput.files.length > 0;
+  const removeImage = document.getElementById('cRemoveIconImage').value === '1';
+
+  const nameAr = document.getElementById('cNameAr').value;
+  const nameEn = document.getElementById('cNameEn').value;
+  const icon = document.getElementById('cIcon').value;
+  const color = document.getElementById('cColor').value;
+  const description = document.getElementById('cDescription').value;
+  const order = parseInt(document.getElementById('cOrder').value) || 0;
 
   try {
-    await api(`/categories${id ? `/${id}` : ''}`, id ? 'PUT' : 'POST', body);
+    // لو فيه صورة مرفوعة أو طلب حذف → نرسل FormData (multipart)
+    if (hasNewImage || removeImage) {
+      const formData = new FormData();
+      formData.append('folder', 'categories');
+      formData.append('nameAr', nameAr);
+      formData.append('nameEn', nameEn);
+      formData.append('icon', icon);
+      formData.append('color', color);
+      formData.append('description', description);
+      formData.append('order', order);
+      if (hasNewImage) {
+        formData.append('iconImage', fileInput.files[0]);
+      }
+      if (removeImage) {
+        formData.append('imageUrl', ''); // الباك إند يحوّلها لـ null (مسح الصورة)
+      }
+      await api(`/categories${id ? `/${id}` : ''}`, id ? 'PUT' : 'POST', formData, true);
+    } else {
+      // ما فيهش صورة → JSON عادي
+      const body = { nameAr, nameEn, icon, color, description, order };
+      await api(`/categories${id ? `/${id}` : ''}`, id ? 'PUT' : 'POST', body);
+    }
+
     closeModal('categoryModal');
     showToast(id ? 'تم تحديث القسم' : 'تم إضافة القسم');
     loadCategories();

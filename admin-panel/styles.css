@@ -514,6 +514,111 @@ body {
 
 .category-card .action-btns { justify-content: flex-end; }
 
+/* ================================================================
+ * أيقونة القسم كصورة + منتقي الأيقونات + رفع صورة الأيقونة
+ * ================================================================ */
+
+/* صورة الأيقونة داخل كارت القسم — تملأ المربع بالكامل بشكل متناسق */
+.category-icon-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+  display: block;
+}
+
+/* شبكة اختيار الأيقونات في المودال */
+.icon-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid var(--border, #e0e0e0);
+  border-radius: 10px;
+  background: var(--bg, #fafafa);
+}
+
+/* شريحة أيقونة واحدة */
+.icon-chip {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: var(--card-bg, #fff);
+  color: var(--text, #333);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+.icon-chip:hover {
+  background: var(--primary-light, #e3f0ff);
+  border-color: var(--primary, #1565C0);
+}
+.icon-chip.selected {
+  background: #1565C0;
+  border-color: #1565C0;
+  color: #fff;
+}
+.icon-chip .material-icons-round,
+.icon-chip .material-icons {
+  font-size: 24px;
+  line-height: 1;
+}
+
+/* صف رفع صورة الأيقونة */
+.icon-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.btn-sm {
+  padding: 7px 12px;
+  font-size: 13px;
+}
+
+/* معاينة صورة الأيقونة في المودال */
+.cat-icon-preview {
+  position: relative;
+  display: inline-block;
+  margin-top: 10px;
+  width: 72px;
+  height: 72px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border, #e0e0e0);
+}
+.cat-icon-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.cat-icon-remove {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(229, 57, 53, 0.92);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.cat-icon-remove:hover { background: #E53935; }
+
 .coupon-code {
   display: inline-block;
   padding: 4px 12px;
