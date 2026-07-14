@@ -772,6 +772,34 @@ form { padding: 20px; }
   .category-card h4 { font-size: 15px; }
   .category-name-en { font-size: 12px; }
   .category-desc { font-size: 13px; }
+
+  /* ── FIX الأيقونة على التابلت ──
+     بدل ما الصندوق يبقى 50x50 ثابت والنص يتقطع،
+     نخليه يتمدد بعرض حسب المحتوى بخط 13px. */
+  .category-head { align-items: flex-start; }
+
+  .category-icon-wrap {
+    width: auto;
+    min-width: 48px;
+    max-width: 80px;
+    height: auto;
+    min-height: 48px;
+    padding: 6px 8px;
+    border-radius: 10px;
+    align-self: flex-start;
+  }
+
+  .category-icon-wrap span {
+    font-size: 13px;
+    white-space: normal;
+    word-break: break-word;
+    overflow: visible;
+    text-overflow: unset;
+    line-height: 1.4;
+    text-align: center;
+    font-weight: 700;
+    font-family: 'Material Icons Round', 'Material Icons', 'Cairo', sans-serif;
+  }
 }
 
 @media (max-width: 480px) {
