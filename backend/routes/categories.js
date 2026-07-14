@@ -2,6 +2,8 @@ const express = require('express');
 const Category = require('../models/Category');
 const Product = require('../models/Product');
 const { protect, admin } = require('../middleware/auth');
+const upload = require('../middleware/upload');
+const { filePublicUrl } = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -33,18 +35,29 @@ router.get('/:id', async (req, res) => {
 
 // @route   POST /api/categories
 // @access  Admin
-router.post('/', protect, admin, async (req, res) => {
+router.post('/', protect, admin, upload.single('iconImage'), async (req, res) => {
   try {
-    const { nameAr, nameEn, icon, color, description, imageUrl, order } = req.body;
+    const { nameAr, nameEn, icon, color, description, order } = req.body;
 
-    if (!nameAr || !nameEn || !icon || !color) {
-      return res.status(400).json({ message: 'الحقول الأساسية مطلوبة (nameAr, nameEn, icon, color)' });
+    if (!nameAr || !nameEn || !color) {
+      return res.status(400).json({ message: 'الحقول الأساسية مطلوبة (nameAr, nameEn, color)' });
+    }
+
+    // الأيقونة: إما اسم Material Icon (icon) أو صورة مرفوعة (iconImage)
+    let imageUrl = req.body.imageUrl || null;
+    if (req.file) {
+      imageUrl = filePublicUrl(req.file, 'categories');
+    }
+    if (!icon && !imageUrl) {
+      return res.status(400).json({ message: 'يجب اختيار أيقونة أو رفع صورة أيقونة' });
     }
 
     const category = await Category.create({
-      nameAr, nameEn, icon, color,
+      nameAr, nameEn,
+      icon: icon || 'category',
+      color,
       description: description || '',
-      imageUrl: imageUrl || null,
+      imageUrl,
       order: order || 0,
     });
 
@@ -57,9 +70,19 @@ router.post('/', protect, admin, async (req, res) => {
 
 // @route   PUT /api/categories/:id
 // @access  Admin
-router.put('/:id', protect, admin, async (req, res) => {
+router.put('/:id', protect, admin, upload.single('iconImage'), async (req, res) => {
   try {
-    const updates = req.body;
+    const updates = { ...req.body };
+
+    // لو فيه صورة أيقونة مرفوعة جديدة
+    if (req.file) {
+      updates.imageUrl = filePublicUrl(req.file, 'categories');
+    }
+    // لو الأدمن حب يمسح صورة الأيقونة (imageUrl='' نعتبرها مسح)
+    if ('imageUrl' in updates && updates.imageUrl === '') {
+      updates.imageUrl = null;
+    }
+
     const category = await Category.findByIdAndUpdate(
       req.params.id,
       updates,

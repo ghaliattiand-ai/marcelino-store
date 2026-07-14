@@ -31,7 +31,7 @@ const ensureDir = (dir) => {
 };
 
 // المجلدات المسموح بها فقط (منع path traversal عبر req.body.folder)
-const ALLOWED_FOLDERS = ['products', 'banners'];
+const ALLOWED_FOLDERS = ['products', 'banners', 'categories'];
 const UPLOADS_ROOT = path.resolve(__dirname, '..', 'uploads');
 
 // فلتر الصور — نتحقق من MIME type الحقيقي لا اسم الملف فقط

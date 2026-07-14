@@ -12,8 +12,8 @@ const categorySchema = new mongoose.Schema({
     trim: true,
   },
   icon: {
-    type: String, // اسم الأيقونة (مثل: water_drop)
-    required: true,
+    type: String, // اسم الأيقونة (مثل: water_drop) — اختياري لو فيه imageUrl
+    default: 'category',
   },
   color: {
     type: String, // لون hex (مثل: #1565C0)
@@ -24,7 +24,7 @@ const categorySchema = new mongoose.Schema({
     default: '',
   },
   imageUrl: {
-    type: String,
+    type: String, // صورة أيقونة مرفوعة من جهاز الأدمن (تظهر بدل/مع الأيقونة)
     default: null,
   },
   order: {

@@ -78,8 +78,12 @@ app.get('/', (req, res) => {
 // معالج الأخطاء
 app.use((err, req, res, next) => {
   console.error('Error:', err.message);
+  // أخطاء رفع الصور (multer): نوع غير مدعوم أو حجم أكبر من المسموح
   if (err.message && err.message.includes('صيغة الصورة')) {
     return res.status(400).json({ message: err.message });
+  }
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(400).json({ message: 'حجم الصورة كبير جداً (الحد الأقصى 5 ميجابايت)' });
   }
   res.status(500).json({ message: 'خطأ داخلي في الخادم' });
 });
