@@ -426,23 +426,25 @@ body {
    لو emoji أو نص قصير يظهر عادي.
    overflow:hidden + white-space:nowrap يمنع الفيضان في كل الحالات. */
 .category-icon-wrap span {
+  /* Material Icons: يحوّل "construction" و"more_horiz" إلى أيقونة فعلية */
   font-family: 'Material Icons Round', 'Material Icons', 'Cairo', sans-serif;
-  font-weight: normal;
+  font-weight: bold;
   font-style: normal;
-  font-size: 26px;
+  font-size: 26px;         /* مناسب للـ emoji والـ Material Icons */
   line-height: 1;
   letter-spacing: normal;
   text-transform: none;
-  white-space: nowrap;
-  word-break: normal;
-  direction: ltr;
   -webkit-font-feature-settings: 'liga';
   font-feature-settings: 'liga';
   -webkit-font-smoothing: antialiased;
-  display: block;
+  /* لو المحتوى نص عادي (مش أيقونة): نصغّر الخط ونلفّ */
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
-  text-align: center;
+  height: 100%;
   overflow: hidden;
+  white-space: nowrap;     /* سطر واحد للأيقونات */
   text-overflow: clip;
 }
 
@@ -761,14 +763,15 @@ form { padding: 20px; }
   .section-header { flex-wrap: wrap; gap: 10px; }
   .section-header input, .section-header select { min-width: 160px; flex: 1; }
 
+  /* عمود واحد على التابلت — كل كارت في صف لوحده */
   .categories-grid, .coupons-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
     gap: 12px;
   }
   .category-card, .coupon-card { padding: 16px; gap: 12px; }
-  .category-card h4 { font-size: 14px; }
-  .category-name-en { font-size: 11px; }
-  .category-desc { font-size: 12px; }
+  .category-card h4 { font-size: 15px; }
+  .category-name-en { font-size: 12px; }
+  .category-desc { font-size: 13px; }
 }
 
 @media (max-width: 480px) {
