@@ -468,10 +468,9 @@ async function loadProducts() {
           <td>${p.isFeatured ? '<span class="badge badge-orange">مميز</span>' : '-'}</td>
           <td>
             <div class="action-btns">
-  <button class="action-btn btn-view" onclick="addProductToCategory('${c._id}')">➕ منتج</button>
-  <button class="action-btn btn-edit" onclick="editCategory('${c._id}')">تعديل</button>
-  <button class="action-btn btn-delete" onclick="deleteCategory('${c._id}')">حذف</button>
-</div>
+              <button class="action-btn btn-edit" onclick="editProduct('${p._id}')">تعديل</button>
+              <button class="action-btn btn-delete" onclick="deleteProduct('${p._id}')">حذف</button>
+            </div>
           </td>
         </tr>
       `;
@@ -703,11 +702,12 @@ async function loadCategories() {
           </div>
         </div>
         ${c.description ? `<p class="category-desc">${escapeHtml(c.description)}</p>` : '<p class="category-desc empty">— لا يوجد وصف</p>'}
-        <div class="action-btns">
+<div class="action-btns">
+          <button class="action-btn btn-view" onclick="addProductToCategory('${c._id}')">➕ منتج</button>
           <button class="action-btn btn-edit" onclick="editCategory('${c._id}')">تعديل</button>
           <button class="action-btn btn-delete" onclick="deleteCategory('${c._id}')">حذف</button>
         </div>
-      </div>
+              </div>
     `).join('');
   } catch (err) {
     showToast('فشل تحميل الأقسام', 'error');
