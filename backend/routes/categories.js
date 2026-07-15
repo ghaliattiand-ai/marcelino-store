@@ -39,9 +39,9 @@ router.post('/', protect, admin, upload.single('iconImage'), async (req, res) =>
   try {
     const { nameAr, nameEn, icon, color, description, order } = req.body;
 
-    if (!nameAr || !nameEn || !color) {
-      return res.status(400).json({ message: 'الحقول الأساسية مطلوبة (nameAr, nameEn, color)' });
-    }
+   if (!nameAr || !color) {
+  return res.status(400).json({ message: 'الحقول الأساسية مطلوبة (nameAr, color)' });
+}
 
     // الأيقونة: إما اسم Material Icon (icon) أو صورة مرفوعة (iconImage)
     let imageUrl = req.body.imageUrl || null;

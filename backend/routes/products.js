@@ -87,11 +87,11 @@ router.post('/', protect, admin, upload.array('images', 5), async (req, res) => 
     } = req.body;
 
     // التحقق من البيانات
-    if (!categoryId || !nameAr || !nameEn || !price || !stock) {
-      return res.status(400).json({
-        message: 'الحقول الأساسية مطلوبة: categoryId, nameAr, nameEn, price, stock',
-      });
-    }
+    if (!categoryId || !nameAr || !price || !stock) {
+  return res.status(400).json({
+    message: 'الحقول الأساسية مطلوبة: categoryId, nameAr, price, stock',
+  });
+}
 
     // المواصفات (JSON string)
     let specifications = {};
@@ -113,7 +113,7 @@ router.post('/', protect, admin, upload.array('images', 5), async (req, res) => 
     const product = await Product.create({
       categoryId,
       nameAr: nameAr.trim(),
-      nameEn: nameEn.trim(),
+nameEn: nameEn ? nameEn.trim() : '',
       description: description || '',
       price: parseFloat(price),
       discountPrice: discountPrice ? parseFloat(discountPrice) : null,
