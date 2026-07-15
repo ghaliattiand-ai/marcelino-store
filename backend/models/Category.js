@@ -7,10 +7,10 @@ const categorySchema = new mongoose.Schema({
     trim: true,
   },
   nameEn: {
-    type: String,
-    required: [true, 'اسم القسم (إنجليزي) مطلوب'],
-    trim: true,
-  },
+  type: String,
+  default: '',
+  trim: true,
+},
   icon: {
     type: String, // اسم الأيقونة (مثل: water_drop) — اختياري لو فيه imageUrl
     default: 'category',
