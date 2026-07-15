@@ -12,10 +12,10 @@ const productSchema = new mongoose.Schema({
     trim: true,
   },
   nameEn: {
-    type: String,
-    required: [true, 'اسم المنتج (إنجليزي) مطلوب'],
-    trim: true,
-  },
+  type: String,
+  default: '',
+  trim: true,
+},
   description: {
     type: String,
     default: '',
