@@ -468,9 +468,10 @@ async function loadProducts() {
           <td>${p.isFeatured ? '<span class="badge badge-orange">مميز</span>' : '-'}</td>
           <td>
             <div class="action-btns">
-              <button class="action-btn btn-edit" onclick="editProduct('${p._id}')">تعديل</button>
-              <button class="action-btn btn-delete" onclick="deleteProduct('${p._id}')">حذف</button>
-            </div>
+  <button class="action-btn btn-view" onclick="addProductToCategory('${c._id}')">➕ منتج</button>
+  <button class="action-btn btn-edit" onclick="editCategory('${c._id}')">تعديل</button>
+  <button class="action-btn btn-delete" onclick="deleteCategory('${c._id}')">حذف</button>
+</div>
           </td>
         </tr>
       `;
@@ -590,6 +591,28 @@ async function deleteProduct(id) {
   }
 }
 
+async function addProductToCategory(categoryId) {
+  // تحميل الأقسام لو مش موجودين في الكاش
+  if (categoriesCache.length === 0) {
+    const cats = await api('/categories');
+    categoriesCache = cats.categories || [];
+  }
+
+  // reset الفورم أولاً
+  document.getElementById('productForm').reset();
+  document.getElementById('productId').value = '';
+  document.getElementById('productModalTitle').textContent = 'إضافة منتج جديد';
+  document.getElementById('currentImages').innerHTML = '';
+
+  // نبني الـ dropdown ونحدد القسم مباشرة
+  const select = document.getElementById('pCategory');
+  select.innerHTML = categoriesCache.map((c) =>
+    `<option value="${c._id}" ${c._id === categoryId ? 'selected' : ''}>${c.nameAr}</option>`
+  ).join('');
+  select.value = categoryId;
+
+  showModal('productModal');
+}
 // ===== Categories =====
 
 // قائمة أيقونات Material مناسبة لمتجر سباكة وحدايد وبويات
