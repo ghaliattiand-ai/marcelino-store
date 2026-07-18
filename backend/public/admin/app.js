@@ -413,7 +413,7 @@ async function loadStats() {
       topEl.innerHTML = data.topProducts.map((p) => `
         <div class="recent-item">
           <div class="recent-item-info">
-            <div class="recent-item-title">${p.name}</div>
+            <div class="recent-item-title">${escapeHtml(p.name)}</div>
             <div class="recent-item-sub">مبيع: ${p.totalSold} قطعة</div>
           </div>
           <div class="recent-item-value">${formatPrice(p.revenue)} ج</div>
@@ -483,7 +483,7 @@ async function loadProducts() {
 function openProductModal() {
   // تحميل الأقسام في dropdown
   const select = document.getElementById('pCategory');
-  select.innerHTML = categoriesCache.map((c) => `<option value="${c._id}">${c.nameAr}</option>`).join('');
+  select.innerHTML = categoriesCache.map((c) => `<option value="${escapeHtml(c._id)}">${escapeHtml(c.nameAr)}</option>`).join('');
   document.getElementById('productForm').reset();
   document.getElementById('productId').value = '';
   document.getElementById('productModalTitle').textContent = 'إضافة منتج جديد';
@@ -502,7 +502,7 @@ async function editProduct(id) {
       categoriesCache = cats.categories || [];
     }
     select.innerHTML = categoriesCache.map((c) =>
-      `<option value="${c._id}" ${c._id === (p.categoryId && p.categoryId._id ? p.categoryId._id : p.categoryId) ? 'selected' : ''}>${c.nameAr}</option>`
+      `<option value="${escapeHtml(c._id)}" ${c._id === (p.categoryId && p.categoryId._id ? p.categoryId._id : p.categoryId) ? 'selected' : ''}>${escapeHtml(c.nameAr)}</option>`
     ).join('');
 
     document.getElementById('productId').value = p._id;

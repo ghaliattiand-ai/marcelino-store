@@ -266,8 +266,9 @@ async function optionalAuth(req, _res, next) {
 // @access  Public (العميل بيدخل مشكلته) — لو مسجل دخول نربط المحادثة بحسابه
 router.post('/message', optionalAuth, async (req, res) => {
   try {
-    // rate limit بسيط لكل IP
-    const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').toString().split(',')[0].trim();
+    // rate limit لكل IP — نستعمل req.ip (Express بتحلّه صح مع trust proxy)
+    // تجنب قراءة X-Forwarded-For يدوياً لأنها قابلة للتزوير من العميل
+    const ip = req.ip || req.socket?.remoteAddress || 'unknown';
     if (!rateLimit(ip)) {
       return res.status(429).json({ message: 'كترت رسايل، حاول بعد دقيقة' });
     }

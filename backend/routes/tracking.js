@@ -47,8 +47,8 @@ async function optionalAuth(req, _res, next) {
 // @access  Public (يرد الموبايل أحداث استخدام — app_open / product_view)
 router.post('/event', optionalAuth, async (req, res) => {
   try {
-    const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown')
-      .toString().split(',')[0].trim();
+    // نستعمل req.ip (Express بتحلّه صح مع trust proxy) بدل قراءة X-Forwarded-For يدوياً
+    const ip = req.ip || req.socket?.remoteAddress || 'unknown';
     if (!trackRateLimit(ip)) {
       return res.status(429).json({ message: 'كترت إرسال أحداث' });
     }

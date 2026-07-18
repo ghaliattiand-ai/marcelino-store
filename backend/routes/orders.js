@@ -30,7 +30,7 @@ async function compressProofImage(dataUri) {
 router.post('/', protect, async (req, res) => {
   try {
     const {
-      items, shipping, address, customerPhone, paymentMethod, couponCode,
+      items, address, customerPhone, paymentMethod, couponCode,
       proofFromNumber, proofFromName, proofImage, proofDate,
     } = req.body;
 
@@ -38,44 +38,43 @@ router.post('/', protect, async (req, res) => {
       return res.status(400).json({ message: 'السلة فارغة' });
     }
 
-    // 1) التحقق من المخزون أولاً — رفض الطلب لو أي منتج ماكفاش
-    const stockCheck = [];
-    for (const item of items) {
-      if (!item.productId || !item.quantity) continue;
-      const product = await Product.findById(item.productId);
-      if (!product) {
-        return res.status(400).json({ message: `منتج غير موجود: ${item.productId}` });
-      }
-      if (product.stock < item.quantity) {
-        stockCheck.push({
-          name: product.nameAr,
-          available: product.stock,
-          requested: item.quantity,
-        });
-      }
-    }
-    if (stockCheck.length > 0) {
-      return res.status(400).json({
-        message: 'الكمية المطلوبة غير متوفرة في المخزون',
-        outOfStock: stockCheck,
-      });
-    }
-
-    // 2) حساب المجموع من السيرفر + خصم المخزون
+    // 1) خصم المخزون ذرياً + حساب المجموع من السيرفر
+    // نستعمل findOneAndUpdate بشرط stock >= quantity لمنع overselling عند الطلبات المتزامنة.
+    // لو أي منتج غير متوفر، نرجع (rollback) كل ما اتخصم قبل كده.
     let subtotal = 0;
     const serverItems = [];
+    const decremented = []; // { productId, quantity } للتتبع في حال الـ rollback
 
     for (const item of items) {
-      const product = await Product.findById(item.productId);
-      if (!product) continue;
+      if (!item.productId || !item.quantity) continue;
+
+      const product = await Product.findOneAndUpdate(
+        { _id: item.productId, stock: { $gte: item.quantity } },
+        { $inc: { stock: -item.quantity } },
+        { new: true }
+      );
+
+      if (!product) {
+        // المنتج غير موجود أو مخزونه غير كافٍ — نرجع ما اتخصم قبل كده
+        for (const d of decremented) {
+          await Product.updateOne({ _id: d.productId }, { $inc: { stock: d.quantity } });
+        }
+        const missing = await Product.findById(item.productId).select('nameAr stock');
+        return res.status(400).json({
+          message: 'الكمية المطلوبة غير متوفرة في المخزون',
+          outOfStock: [{
+            name: missing ? missing.nameAr : item.productId,
+            available: missing ? missing.stock : 0,
+            requested: item.quantity,
+          }],
+        });
+      }
+
+      decremented.push({ productId: item.productId, quantity: item.quantity });
 
       const unitPrice = product.discountPrice != null ? product.discountPrice : product.price;
       const lineTotal = unitPrice * item.quantity;
       subtotal += lineTotal;
-
-      // خصم الكمية من المخزون (تأكدنا أعلاه إنه متوفر)
-      product.stock -= item.quantity;
-      await product.save();
 
       serverItems.push({
         productId: product._id,
@@ -94,7 +93,8 @@ router.post('/', protect, async (req, res) => {
     const storeSettings = await Setting.getSettings();
     const shippingFee = storeSettings.shippingFee != null ? storeSettings.shippingFee : 30;
     const freeThreshold = storeSettings.freeShippingThreshold != null ? storeSettings.freeShippingThreshold : 500;
-    let shippingCost = parseFloat(shipping) || (subtotal >= freeThreshold ? 0 : shippingFee);
+    // الشحن من السيرفر فقط — العميل لا يتحكم في قيمته (منع تلاعب بالأسعار)
+    let shippingCost = subtotal >= freeThreshold ? 0 : shippingFee;
 
     // 4) تطبيق الكوبون (إن وجد)
     let discount = 0;

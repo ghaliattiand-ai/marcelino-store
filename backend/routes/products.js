@@ -7,6 +7,11 @@ const { filePublicUrl } = require('../middleware/upload');
 
 const router = express.Router();
 
+// هرب الأحرف الخاصة في regex لمنع ReDoS وتجاوز الفلاتر
+function escapeRegex(str) {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 // @route   GET /api/products
 // @access  Public
 router.get('/', async (req, res) => {
@@ -24,9 +29,9 @@ router.get('/', async (req, res) => {
       query.isFeatured = true;
     }
 
-    // البحث
+    // البحث — نهرب النص قبل إدخاله في regex
     if (search && search.trim()) {
-      const s = search.trim();
+      const s = escapeRegex(search.trim());
       query.$or = [
         { nameAr: { $regex: s, $options: 'i' } },
         { nameEn: { $regex: s, $options: 'i' } },

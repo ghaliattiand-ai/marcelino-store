@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
@@ -14,15 +15,47 @@ const app = express();
 // الثقة بالـ proxy العكسي (Render/Nginx) — علشان req.protocol / req.secure و IP يشتغلوا صح
 app.set('trust proxy', 1);
 
+// ===== الأصول المسموح بها لـ CORS =====
+// تطبيقات الموبايل بلا Origin تُسمح تلقائياً؛ لواحات الويب نحدد قائمة صريحة.
+const corsOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
 // Middleware
-// CORS: نسمح بكل المصادر (تطبيق موبايل + لوحة ويب محلية)، لكن مع إعدادات صريحة
+// CORS: نسمح بتطبيق الموبايل (بلا Origin) + لوحات الويب من الأصول المصرّح بها فقط
 app.use(cors({
-  origin: true, // يرد على نفس Origin الطلب
+  origin: (origin, callback) => {
+    // لا Origin = طلب موبايل/curl — نسمحه
+    if (!origin) return callback(null, true);
+    // لو القائمة فاضية (مش مكوّنة) نسمح بنفس الـ Origin كحل وسط آمن
+    if (corsOrigins.length === 0) return callback(null, true);
+    if (corsOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('غير مسموح بهذا المصدر بواسطة CORS'));
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
   maxAge: 86400,
 }));
+
+// ===== Security Headers عبر helmet =====
+// نرخّص بعض الهيدرز علشان لوحة التحكم (صور/سكربتات من نفس الأصل + Cloudinary + Google Fonts)
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }, // السماح بتحميل صور المنتجات من /uploads عبر الأصل
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      // لوحة التحكم vanilla JS — نسمح بالـ inline scripts/styles الموجودة في index.html
+      scriptSrc: ["'self'", "'unsafe-inline'", 'https://apis.google.com'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+      imgSrc: ["'self'", 'data:', 'https:'], // صور Cloudinary + data URIs + أي https
+      connectSrc: ["'self'", 'https://api.openai.com', 'https://generativelanguage.googleapis.com'],
+    },
+  },
+}));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -56,23 +89,9 @@ app.use('/api/settings', require('./routes/settings'));
 app.use('/api/assistant', require('./routes/assistant'));
 app.use('/api/tracking', require('./routes/tracking'));
 
-// Route رئيسي للتأكد إن السيرفر شغال
+// Route رئيسي للتأكد إن السيرفر شغال (health check فقط — بلا كشف هيكل الـ API)
 app.get('/', (req, res) => {
-  res.json({
-    name: 'MARCELINO API',
-    version: '1.0.0',
-    description: 'متجر السباكة والحدايد والبويات',
-    endpoints: {
-      auth: '/api/auth',
-      products: '/api/products',
-      categories: '/api/categories',
-      orders: '/api/orders',
-      coupons: '/api/coupons',
-      banners: '/api/banners',
-      admin: '/api/admin',
-    },
-    adminPanel: '/admin',
-  });
+  res.json({ status: 'ok', name: 'MARCELINO API' });
 });
 
 // معالج الأخطاء
