@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>سياسة الخصوصية — مارسيلينو</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@500;700;800;900&family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy: #0D1B3E;
+    --navy-ink: #071228;
+    --orange: #FF6B00;
+    --paper: #F2F3F7;
+    --card: #FFFFFF;
+    --slate: #48506A;
+    --slate-light: #7B84A3;
+    --line: #E4E7F0;
+  }
+
+  *{ box-sizing: border-box; }
+  html{ scroll-behavior: smooth; }
+
+  body{
+    margin: 0;
+    background: var(--paper);
+    color: var(--navy-ink);
+    font-family: 'Cairo', system-ui, sans-serif;
+    line-height: 1.85;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a{ color: var(--orange); text-decoration: none; }
+  a:hover{ text-decoration: underline; }
+
+  :focus-visible{
+    outline: 3px solid var(--orange);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  /* ===== Header ===== */
+  header{
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: linear-gradient(180deg, var(--navy) 0%, var(--navy-ink) 100%);
+    color: #fff;
+    padding: 18px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 6px 24px rgba(7,18,40,0.25);
+  }
+  .brand{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .mark{
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    background: var(--orange);
+    display: grid;
+    place-items: center;
+    font-family: 'Tajawal', sans-serif;
+    font-weight: 900;
+    font-size: 20px;
+    color: var(--navy-ink);
+    flex-shrink: 0;
+  }
+  .brand-name{
+    font-family: 'Tajawal', sans-serif;
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: .2px;
+  }
+  .brand-sub{
+    font-size: 12px;
+    color: rgba(255,255,255,.6);
+    margin-top: 2px;
+  }
+  header .updated{
+    font-size: 12px;
+    color: rgba(255,255,255,.55);
+    white-space: nowrap;
+  }
+
+  /* ===== Hero / intro ===== */
+  .intro{
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 56px 24px 8px;
+  }
+  .intro h1{
+    font-family: 'Tajawal', sans-serif;
+    font-weight: 900;
+    font-size: clamp(28px, 4.5vw, 40px);
+    margin: 0 0 14px;
+    color: var(--navy-ink);
+  }
+  .intro p{
+    color: var(--slate);
+    font-size: 16.5px;
+    max-width: 60ch;
+    margin: 0;
+  }
+
+  /* pipe-joint divider — recurring signature motif */
+  .pipe-divider{
+    max-width: 760px;
+    margin: 40px auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+  .pipe-divider::before,
+  .pipe-divider::after{
+    content: "";
+    flex: 1;
+    height: 3px;
+    background: repeating-linear-gradient(90deg, var(--line) 0 10px, transparent 10px 14px);
+  }
+  .pipe-divider .joint{
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--card);
+    border: 3px solid var(--orange);
+    margin: 0 10px;
+    flex-shrink: 0;
+  }
+
+  /* ===== Table of contents ===== */
+  nav.toc{
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 0 24px 8px;
+  }
+  nav.toc h2{
+    font-family: 'Tajawal', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--slate-light);
+    margin: 0 0 14px;
+  }
+  nav.toc ol{
+    list-style: none;
+    margin: 0; padding: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 20px;
+    counter-reset: toc;
+  }
+  nav.toc a{
+    counter-increment: toc;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    color: var(--navy-ink);
+    font-weight: 600;
+    font-size: 14.5px;
+    padding: 6px 0;
+    border-bottom: 1px solid transparent;
+  }
+  nav.toc a::before{
+    content: counter(toc, decimal-leading-zero);
+    font-family: 'Tajawal', sans-serif;
+    font-weight: 800;
+    color: var(--orange);
+    font-size: 12.5px;
+  }
+  nav.toc a:hover{ text-decoration: none; border-bottom-color: var(--orange); }
+
+  /* ===== Sections ===== */
+  main{
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 8px 24px 40px;
+  }
+  section{
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 30px 28px;
+    margin-bottom: 20px;
+    scroll-margin-top: 90px;
+  }
+  section h2{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: 'Tajawal', sans-serif;
+    font-weight: 800;
+    font-size: 20px;
+    color: var(--navy-ink);
+    margin: 0 0 16px;
+  }
+  .valve{
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: var(--navy);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .valve::before, .valve::after{
+    content:"";
+    position: absolute;
+    background: #fff;
+    top: 50%; left: 50%;
+  }
+  .valve::before{ width: 14px; height: 2.5px; transform: translate(-50%,-50%) rotate(45deg); }
+  .valve::after{ width: 14px; height: 2.5px; transform: translate(-50%,-50%) rotate(-45deg); }
+
+  section p{ color: var(--slate); margin: 0 0 12px; font-size: 15.5px; }
+  section p:last-child{ margin-bottom: 0; }
+  section ul{ margin: 8px 0 12px; padding-inline-start: 20px; color: var(--slate); }
+  section ul li{ margin-bottom: 8px; font-size: 15.5px; }
+  section ul li b{ color: var(--navy-ink); }
+
+  .note{
+    background: #FFF4EB;
+    border: 1px solid #FFD9B8;
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-size: 14.5px;
+    color: #8A4A0F;
+    margin-top: 14px;
+  }
+
+  #data-deletion .note{
+    background: #EEF2FF;
+    border-color: #C9D3FF;
+    color: var(--navy);
+  }
+
+  /* ===== Footer ===== */
+  footer{
+    background: var(--navy-ink);
+    color: rgba(255,255,255,.7);
+    padding: 34px 24px;
+    text-align: center;
+    font-size: 13.5px;
+  }
+  footer .brand-name{ color: #fff; margin-bottom: 6px; display:block; }
+  footer a{ color: var(--orange); }
+
+  @media (max-width: 600px){
+    header{ padding: 14px 18px; }
+    header .updated{ display:none; }
+    .intro{ padding: 40px 18px 4px; }
+    nav.toc{ padding: 0 18px 4px; }
+    nav.toc ol{ grid-template-columns: 1fr; }
+    main{ padding: 4px 18px 32px; }
+    section{ padding: 24px 20px; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    html{ scroll-behavior: auto; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="mark">م</div>
+    <div>
+      <div class="brand-name">مارسيلينو</div>
+      <div class="brand-sub">سياسة الخصوصية</div>
+    </div>
+  </div>
+  <div class="updated">آخر تحديث: 19 يوليو 2026</div>
+</header>
+
+<div class="intro">
+  <h1>خصوصيتك أمانة عندنا</h1>
+  <p>
+    مارسيلينو تطبيق للتسوق ولوازم السباكة، وبيانك الشخصي جزء من الثقة اللي بنينا عليها الخدمة دي.
+    الصفحة دي بتشرح بالتفصيل إيه البيانات اللي بنجمعها، ليه بنجمعها، وإزاي بنحميها،
+    من غير تعقيد قانوني زيادة عن اللازم.
+  </p>
+</div>
+
+<div class="pipe-divider"><span class="joint"></span></div>
+
+<nav class="toc" aria-label="جدول محتويات السياسة">
+  <h2>جدول المحتويات</h2>
+  <ol>
+    <li><a href="#data-collected">البيانات اللي بنجمعها</a></li>
+    <li><a href="#data-use">إزاي بنستخدم بياناتك</a></li>
+    <li><a href="#data-sharing">مشاركة البيانات</a></li>
+    <li><a href="#security">أمان البيانات</a></li>
+    <li><a href="#rights">حقوقك</a></li>
+    <li><a href="#data-deletion">حذف الحساب والبيانات</a></li>
+    <li><a href="#children">خصوصية الأطفال</a></li>
+    <li><a href="#changes">تحديثات السياسة</a></li>
+    <li><a href="#contact">تواصل معنا</a></li>
+  </ol>
+</nav>
+
+<main>
+
+  <section id="data-collected">
+    <h2><span class="valve" aria-hidden="true"></span>البيانات اللي بنجمعها</h2>
+    <p>لما تستخدم مارسيلينو، بنجمع أنواع البيانات دي بس:</p>
+    <ul>
+      <li><b>بيانات الحساب:</b> الاسم، البريد الإلكتروني، رقم الهاتف، وكلمة المرور (بنخزنها مشفّرة ومفيش حد عندنا — ولا إحنا — يقدر يشوفها كنص عادي).</li>
+      <li><b>تسجيل الدخول عبر جوجل أو فيسبوك:</b> بناخد بس الاسم، البريد الإلكتروني، والصورة الشخصية اللي بتوافق على مشاركتها. إحنا مش بناخد أو بنشوف كلمة مرور حسابك على جوجل أو فيسبوك خالص.</li>
+      <li><b>بيانات الطلبات:</b> عنوان التوصيل، تفاصيل الطلبات، وسجل المشتريات عشان نقدر نوصلك أوردراتك صح.</li>
+      <li><b>بيانات تقنية بسيطة:</b> نوع الجهاز وعنوان الـ IP، بنستخدمها بس لأغراض الأمان ومنع محاولات الاحتيال أو إساءة الاستخدام.</li>
+    </ul>
+    <div class="note">مبنجمعش أي بيانات دفع مباشرة (زي أرقام الكروت البنكية) — دي بتتعامل معاها بوابة الدفع نفسها، مش سيرفرات مارسيلينو.</div>
+  </section>
+
+  <section id="data-use">
+    <h2><span class="valve" aria-hidden="true"></span>إزاي بنستخدم بياناتك</h2>
+    <p>بنستخدم البيانات اللي جمعناها في حاجات محددة بس:</p>
+    <ul>
+      <li>إنشاء حسابك وتسجيل دخولك بأمان.</li>
+      <li>معالجة طلباتك وتوصيلها للعنوان الصحيح.</li>
+      <li>التواصل معاك بخصوص حالة الطلب أو أي استفسار بتبعته لينا.</li>
+      <li>تحسين التطبيق وإصلاح أي مشاكل تقنية.</li>
+      <li>حماية حسابك ومنع أي محاولة دخول غير مصرح بيها.</li>
+    </ul>
+  </section>
+
+  <section id="data-sharing">
+    <h2><span class="valve" aria-hidden="true"></span>مشاركة البيانات</h2>
+    <p>إحنا مبنبيعش بياناتك لأي حد لأغراض تسويقية، نقطة واحدة. بس بنستخدم خدمات موثوقة تساعدنا نشغّل التطبيق، وكل واحدة منها بتاخد الحد الأدنى اللي محتاجاه بس:</p>
+    <ul>
+      <li><b>Google Sign-In و Facebook Login:</b> للتحقق من هويتك وقت تسجيل الدخول.</li>
+      <li><b>SMS Misr:</b> لإرسال كود التحقق (OTP) على رقم هاتفك وقت التسجيل.</li>
+      <li><b>Cloudinary:</b> لتخزين صور المنتجات بشكل آمن.</li>
+      <li><b>Render:</b> لاستضافة السيرفرات اللي بتشغّل التطبيق.</li>
+    </ul>
+  </section>
+
+  <section id="security">
+    <h2><span class="valve" aria-hidden="true"></span>أمان البيانات</h2>
+    <p>
+      كلمة المرور بتاعتك بتتشفر بتقنية bcrypt قبل ما تتخزن، والاتصال بين التطبيق والسيرفر بيتم عبر HTTPS مشفّر بالكامل.
+      تسجيل الدخول بيتم عن طريق رمز JWT بمدة صلاحية محدودة، وبنراقب محاولات الدخول المتكررة لمنع أي محاولة اختراق.
+    </p>
+  </section>
+
+  <section id="rights">
+    <h2><span class="valve" aria-hidden="true"></span>حقوقك</h2>
+    <p>بياناتك بتاعتك، وليك الحق دايمًا في:</p>
+    <ul>
+      <li>تشوف البيانات المسجلة على حسابك.</li>
+      <li>تعدّل اسمك، رقم هاتفك، أو بياناتك الشخصية في أي وقت من إعدادات الحساب.</li>
+      <li>تطلب حذف حسابك بالكامل (تفاصيل أكتر في القسم الجاي).</li>
+    </ul>
+  </section>
+
+  <section id="data-deletion">
+    <h2><span class="valve" aria-hidden="true"></span>حذف الحساب والبيانات</h2>
+    <p>
+      لو عايز تحذف حسابك وكل بياناتك من مارسيلينو، ابعتلنا طلب على الإيميل تحت وإحنا هنحذف حسابك وكل بياناتك المرتبطة بيه
+      (الاسم، الإيميل، رقم الهاتف، العناوين، وسجل الطلبات) خلال 7 أيام عمل.
+    </p>
+    <p>لو سجّلت دخولك عن طريق جوجل أو فيسبوك، حذف حسابك من مارسيلينو مش بيأثر على حسابك الأساسي على جوجل أو فيسبوك — هو بيمسح بس البيانات اللي عندنا إحنا.</p>
+    <div class="note">لطلب حذف الحساب: ابعت إيميل من العنوان المسجّل بحسابك إلى <a href="mailto:ghalyattiy@gmail.com">ghalyattiy@gmail.com</a> بعنوان "طلب حذف حساب".</div>
+  </section>
+
+  <section id="children">
+    <h2><span class="valve" aria-hidden="true"></span>خصوصية الأطفال</h2>
+    <p>مارسيلينو مش موجّه للأطفال تحت سن 16 سنة، ومبنجمعش بيانات عن قصد من أي حد في السن ده. لو اكتشفنا حساب لطفل تحت السن ده، هنحذفه فورًا.</p>
+  </section>
+
+  <section id="changes">
+    <h2><span class="valve" aria-hidden="true"></span>تحديثات السياسة</h2>
+    <p>ممكن نحدّث سياسة الخصوصية دي من وقت للتاني عشان تواكب أي تطوير في التطبيق. أي تعديل جوهري هنعلمك بيه داخل التطبيق، وتاريخ آخر تحديث هيفضل ظاهر فوق الصفحة دي دايمًا.</p>
+  </section>
+
+  <section id="contact">
+    <h2><span class="valve" aria-hidden="true"></span>تواصل معنا</h2>
+    <p>لو عندك أي سؤال عن الخصوصية أو بياناتك، تقدر تتواصل معانا في أي وقت:</p>
+    <p>📧 البريد الإلكتروني: <a href="mailto:ghalyattiy@gmail.com">ghalyattiy@gmail.com</a></p>
+  </section>
+
+</main>
+
+<footer>
+  <span class="brand-name">مارسيلينو</span>
+  جميع الحقوق محفوظة © 2026 — لأي استفسار: <a href="mailto:ghalyattiy@gmail.com">ghalyattiy@gmail.com</a>
+</footer>
+
+</body>
+</html>

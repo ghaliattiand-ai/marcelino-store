@@ -64,6 +64,10 @@ app.disable('x-powered-by');
 
 // تقديم الملفات الثابتة (صور المنتجات) — للتوافق مع الـ URLs النسبية القديمة
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.get('/privacy-policy.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'privacy-policy.html'));
+});
+
 
 // تقديم لوحة التحكم — ندعم مسارين:
 //  1) admin-panel كمجلد شقيق للـ backend (dev/local)
