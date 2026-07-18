@@ -17,15 +17,44 @@ const userSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
-    required: [true, 'رقم الهاتف مطلوب'],
+    // مطلوب بس لو الحساب مش جاي من جوجل/فيسبوك (تسجيل بالـ SMS التقليدي)
+    required: [
+      function () {
+        return !this.googleId && !this.facebookId;
+      },
+      'رقم الهاتف مطلوب',
+    ],
     unique: true,
+    sparse: true, // يسمح بوجود أكتر من مستخدم من غير phone (حسابات السوشيال)
     trim: true,
   },
   password: {
     type: String,
-    required: [true, 'كلمة المرور مطلوبة'],
+    // مطلوب بس لو الحساب مش جاي من جوجل/فيسبوك
+    required: [
+      function () {
+        return !this.googleId && !this.facebookId;
+      },
+      'كلمة المرور مطلوبة',
+    ],
     minlength: [6, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'],
     select: false, // لا تُرجع كلمة المرور افتراضياً
+  },
+  // معرّف حساب جوجل (لو الحساب اتسجل أو اترتبط بجوجل)
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true,
+  },
+  // معرّف حساب فيسبوك (لو الحساب اتسجل أو اترتبط بفيسبوك)
+  facebookId: {
+    type: String,
+    unique: true,
+    sparse: true,
+  },
+  // صورة البروفايل (بتيجي من جوجل/فيسبوك غالبًا)
+  avatar: {
+    type: String,
   },
   role: {
     type: String,
@@ -51,6 +80,8 @@ userSchema.pre('save', async function(next) {
 
 // مقارنة كلمة المرور
 userSchema.methods.comparePassword = async function(candidatePassword) {
+  // حسابات السوشيال ممكن ماعندهاش password خالص
+  if (!this.password) return false;
   return await bcrypt.compare(candidatePassword, this.password);
 };
 

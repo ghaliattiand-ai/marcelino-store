@@ -5,6 +5,12 @@ const Product = require('../models/Product');
 const Order = require('../models/Order');
 const OtpCode = require('../models/OtpCode');
 const { isSmsConfigured, sendSms } = require('../services/smsService');
+const {
+  verifyGoogleIdToken,
+  verifyFacebookAccessToken,
+  isGoogleConfigured,
+  isFacebookConfigured,
+} = require('../services/socialAuthService');
 const { protect, admin } = require('../middleware/auth');
 
 const router = express.Router();
@@ -64,6 +70,46 @@ const generateToken = (userId) => {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   });
 };
+
+/**
+ * إيجاد يوزر مرتبط بحساب جوجل/فيسبوك أو إنشاءه لو مش موجود.
+ * لو فيه يوزر بنفس الإيميل مسجل قبل كده (بالتليفون مثلاً)، بيتربط بيه
+ * بدل ما يتعمل حساب مكرر.
+ */
+async function findOrCreateSocialUser(provider, profile) {
+  const providerField = provider === 'google' ? 'googleId' : 'facebookId';
+  const { providerId, email, name, avatar } = profile;
+
+  // 1) الحساب مربوط بمزوّد التسجيل ده بالفعل؟
+  let user = await User.findOne({ [providerField]: providerId });
+  if (user) return user;
+
+  // 2) فيه حساب بنفس الإيميل (اتسجل بالتليفون أو بمزوّد تاني قبل كده)؟ نربطه
+  if (email) {
+    user = await User.findOne({ email: email.toLowerCase() });
+    if (user) {
+      user[providerField] = providerId;
+      if (!user.avatar && avatar) user.avatar = avatar;
+      await user.save();
+      return user;
+    }
+  }
+
+  // 3) حساب جديد بالكامل
+  // فيسبوك ممكن يرفض صلاحية الإيميل فبيرجع email: null - نستخدم إيميل placeholder فريد
+  const finalEmail = email
+    ? email.toLowerCase()
+    : `${provider}_${providerId}@social.placeholder.local`;
+
+  user = await User.create({
+    name: name || 'مستخدم',
+    email: finalEmail,
+    avatar,
+    [providerField]: providerId,
+  });
+
+  return user;
+}
 
 // ─────────────────────────────────────────────────────────────
 // OTP عبر SMS Misr — التحقق من رقم الهاتف عند إنشاء الحساب
@@ -277,6 +323,78 @@ router.post('/login', loginLimiter, async (req, res) => {
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: 'خطأ في تسجيل الدخول' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// تسجيل الدخول بجوجل وفيسبوك
+// ─────────────────────────────────────────────────────────────
+
+// @route   POST /api/auth/google
+// @desc    تسجيل دخول أو إنشاء حساب عن طريق جوجل (idToken من google_sign_in في الفلاتر)
+// @access  Public
+router.post('/google', loginLimiter, async (req, res) => {
+  try {
+    const { idToken } = req.body;
+    if (!idToken) {
+      return res.status(400).json({ message: 'idToken مطلوب' });
+    }
+    if (!isGoogleConfigured()) {
+      return res.status(500).json({ message: 'تسجيل الدخول بجوجل غير مُهيّأ على السيرفر' });
+    }
+
+    const profile = await verifyGoogleIdToken(idToken);
+    const user = await findOrCreateSocialUser('google', profile);
+    const token = generateToken(user._id);
+
+    res.json({
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        created_at: user.createdAt,
+      },
+      token,
+    });
+  } catch (error) {
+    console.error('Google auth error:', error.message);
+    res.status(401).json({ message: 'فشل التحقق من حساب جوجل' });
+  }
+});
+
+// @route   POST /api/auth/facebook
+// @desc    تسجيل دخول أو إنشاء حساب عن طريق فيسبوك (accessToken من flutter_facebook_auth)
+// @access  Public
+router.post('/facebook', loginLimiter, async (req, res) => {
+  try {
+    const { accessToken } = req.body;
+    if (!accessToken) {
+      return res.status(400).json({ message: 'accessToken مطلوب' });
+    }
+    if (!isFacebookConfigured()) {
+      return res.status(500).json({ message: 'تسجيل الدخول بفيسبوك غير مُهيّأ على السيرفر' });
+    }
+
+    const profile = await verifyFacebookAccessToken(accessToken);
+    const user = await findOrCreateSocialUser('facebook', profile);
+    const token = generateToken(user._id);
+
+    res.json({
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        created_at: user.createdAt,
+      },
+      token,
+    });
+  } catch (error) {
+    console.error('Facebook auth error:', error.message);
+    res.status(401).json({ message: 'فشل التحقق من حساب فيسبوك' });
   }
 });
 
