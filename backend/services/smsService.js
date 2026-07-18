@@ -31,7 +31,7 @@ function getConfig() {
     username: process.env.SMSMISR_USERNAME || '',
     password: process.env.SMSMISR_PASSWORD || '',
     senderToken: process.env.SMSMISR_TOKEN || '',
-    environment: process.env.SMSMISR_ENVIRONMENT || '1',
+    environment: process.env.SMSMISR_ENVIRONMENT || '2',
     language: process.env.SMSMISR_LANGUAGE || '1',
   };
 }
