@@ -100,6 +100,9 @@ router.post('/send-otp', otpSendLimiter, async (req, res) => {
     const smsText = `كود التحقق لحسابك في مارسيلينو: ${code}`;
     const result = await sendSms(normalized, smsText);
 
+    // 🔍 تشخيص مؤقت: اطبع الرد الخام من SMS Misr في الـ logs (نجاح أو فشل)
+    console.log('SMS Misr raw response:', JSON.stringify(result.raw), '| code:', result.code, '| ok:', result.ok);
+
     if (!result.ok) {
       // لو فشل الإرسال، نحذف الكود المخزّن عشان ما يبقاش صالح بدون استلام
       await OtpCode.deleteMany({ phone: normalized });
