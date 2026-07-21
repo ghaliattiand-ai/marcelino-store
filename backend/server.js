@@ -51,8 +51,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
       imgSrc: ["'self'", 'data:', 'https:'],
-      connectSrc: ["'self'", 'https://api.openai.com', 'https://generativelanguage.googleapis.com'],
-    },
+      connectSrc: ["'self'", 'https://api.openai.com', 'https://generativelanguage.googleapis.com', 'https://cdn.jsdelivr.net'],    },
   },
 }));
 
@@ -61,6 +60,17 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // أمان: إخفاء معلومات الخادم
 app.disable('x-powered-by');
+
+// ===== إصلاح ERR_CONTENT_DECODING_FAILED / 304 على onrender =====
+// نلغي الـ ETag (وبالتالي ردود 304 Not Modified المتضاربة مع الضغط)،
+// ونمنع تخزين ردود الـ API في كاش المتصفح علشان ما يفضلش يفك نسخ تالفة.
+app.set('etag', false);
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  next();
+});
 
 // تقديم الملفات الثابتة (صور المنتجات) — للتوافق مع الـ URLs النسبية القديمة
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
