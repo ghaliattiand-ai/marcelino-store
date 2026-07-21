@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MARCELINO</string>
+    <string name="facebook_app_id">1502757281538966</string>
+    <string name="facebook_client_token">c935a99210d7683e7de2397eb321efea</string>
+    <string name="fb_login_protocol_scheme">fb1502757281538966</string>
+</resources>

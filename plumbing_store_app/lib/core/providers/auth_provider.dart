@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // ✅ جديد
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:plumbing_store_app/core/network/api_service.dart';
 import 'package:plumbing_store_app/core/constants/app_constants.dart';
 
@@ -10,18 +11,24 @@ class AuthProvider extends ChangeNotifier {
   static const _keyPhone   = 'auth_phone';
   static const _keyEmail   = 'auth_email';
 
-  // ✅ جديد ─ Firebase OTP
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
-  String? _verificationId;
-  int?    _resendToken;
-  bool    _codeSent = false;
-
   String? _name;
   String? _phone;
   String? _email;
   bool    _isLoggedIn    = false;
   bool    _isLoading     = false;
   String? _errorMessage;
+
+  // ── OTP (SMS Misr) ──
+  bool    _codeSent   = false;      // true بعد نجاح /send-otp
+  String? _verifyToken;             // التوكن المؤقت بعد /verify-otp (يثبت ملكية الرقم)
+  String? _verifiedPhoneForRegister; // الرقم المتحقَّق منه في session التسجيل
+
+  // ── تسجيل الدخول بجوجل ──
+  // لازم تحط هنا الـ Web Client ID من Google Cloud Console (نفس القيمة اللي في
+  // GOOGLE_CLIENT_ID في الباك اند) عشان الباك اند يقدر يتحقق من idToken
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+serverClientId: '840074700643-ial7qptr4ir8qa7uvic45p877i7n0c3k.apps.googleusercontent.com',    scopes: ['email'],
+  );
 
   // Getters
   String? get name         => _name;
@@ -30,7 +37,8 @@ class AuthProvider extends ChangeNotifier {
   bool    get isLoggedIn   => _isLoggedIn;
   bool    get isLoading    => _isLoading;
   String? get errorMessage => _errorMessage;
-  bool    get codeSent     => _codeSent; // ✅ جديد ─ الـ UI يعرض شاشة OTP لما يبقى true
+  bool    get codeSent     => _codeSent;
+  String? get verifiedPhoneForRegister => _verifiedPhoneForRegister;
 
   // ─────────────────────────────────────────
   // تحميل الجلسة من التخزين المحلي
@@ -60,7 +68,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // ─────────────────────────────────────────
-  // ✅ جديد ─ خطوة 1: إرسال OTP
+  // OTP ─ خطوة 1: إرسال كود التحقق إلى رقم الهاتف
   // phoneNumber مثال: '+201234567890'
   // ─────────────────────────────────────────
   Future<void> sendOtp(String phoneNumber) async {
@@ -69,80 +77,26 @@ class AuthProvider extends ChangeNotifier {
     _codeSent     = false;
     notifyListeners();
 
-    await _firebaseAuth.verifyPhoneNumber(
-      phoneNumber:         phoneNumber,
-      forceResendingToken: _resendToken,
-
-      // Android فقط ─ التحقق التلقائي
-      verificationCompleted: (PhoneAuthCredential credential) async {
-        await _signInWithCredential(credential);
-      },
-
-      // فشل الإرسال
-      verificationFailed: (FirebaseAuthException e) {
-        _errorMessage = e.message ?? 'فشل إرسال الكود';
-        _isLoading    = false;
-        notifyListeners();
-      },
-
-      // تم إرسال الكود بنجاح
-      codeSent: (String verificationId, int? resendToken) {
-        _verificationId = verificationId;
-        _resendToken    = resendToken;
-        _codeSent       = true;
-        _isLoading      = false;
-        notifyListeners(); // ← الـ UI هيفتح شاشة OTP هنا
-      },
-
-      codeAutoRetrievalTimeout: (String verificationId) {
-        _verificationId = verificationId;
-      },
-    );
-  }
-
-  // ─────────────────────────────────────────
-  // ✅ جديد ─ خطوة 2: التحقق من كود SMS
-  // ─────────────────────────────────────────
-  Future<bool> verifyOtp(String smsCode) async {
-    if (_verificationId == null) {
-      _errorMessage = 'لازم تبعت الكود الأول';
-      notifyListeners();
-      return false;
-    }
-
-    _isLoading    = true;
-    _errorMessage = null;
-    notifyListeners();
-
     try {
-      final credential = PhoneAuthProvider.credential(
-        verificationId: _verificationId!,
-        smsCode:        smsCode,
-      );
-      return await _signInWithCredential(credential);
-    } on FirebaseAuthException catch (e) {
-      _errorMessage = e.message ?? 'الكود غلط أو انتهت صلاحيته';
-      _isLoading    = false;
+      await ApiService().init();
+      await ApiService().post('/auth/send-otp', data: {'phone': phoneNumber});
+      _codeSent = true;
+    } on ApiException catch (e) {
+      _errorMessage = e.message;
+    } catch (e) {
+      _errorMessage = 'فشل الاتصال بالخادم. تأكد إن السيرفر شغال.';
+    } finally {
+      _isLoading = false;
       notifyListeners();
-      return false;
     }
   }
 
-  // ✅ جديد ─ إعادة إرسال
-  Future<void> resendOtp(String phoneNumber) async {
-    await sendOtp(phoneNumber); // _resendToken محفوظ تلقائياً
-  }
-
   // ─────────────────────────────────────────
-  // ✅ جديد ─ التحقق من كود SMS لإنشاء حساب (بدون signIn للـ backend)
-  // نتحقق بس إن الكود صحيح ونعمل signIn Firebase مؤقتاً عشان نأكد إن الرقم متحرّك
-  // لكن ما نبعتش للـ backend دلّيني. بعدها العميل يكمّل بياناته ونعمل register.
+  // OTP ─ خطوة 2: التحقق من كود SMS لإنشاء حساب (بدون تسجيل دخول)
+  // لو صح، يخزّن verifyToken + الرقم المتحقَّق منه في session التسجيل
   // ─────────────────────────────────────────
-  String? _verifiedPhoneForRegister; // الرقم المتحقَّق منه في session التسجيل
-
-  /// التحقق من كود SMS لإنشاء حساب جديد (بدون تسجيل دخول للـ backend)
   Future<bool> verifyOtpForRegister(String smsCode) async {
-    if (_verificationId == null) {
+    if (!(_phoneForOtp ?? '').isNotEmpty) {
       _errorMessage = 'لازم تبعت الكود الأول';
       notifyListeners();
       return false;
@@ -153,87 +107,43 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final credential = PhoneAuthProvider.credential(
-        verificationId: _verificationId!,
-        smsCode:        smsCode,
-      );
-      // نعمل signIn مؤقت Firebase عشان نتأكد إن الكود صحيح (وavailibleالرقم verified)
-      // بعدها هنعمل signOut Firebase مباشرة عشان ما يفضلش logged-in على Firebase بدون حساب backend
-      final userCred = await _firebaseAuth.signInWithCredential(credential);
-      // الرقم اللي تم تحقّقه من Firebase
-      _verifiedPhoneForRegister = userCred.user?.phoneNumber;
-      // نعمل signOut Firebase مؤقت (الحساب على backend لسه ما اتعملش)
-      await _firebaseAuth.signOut();
-
-      _isLoading    = false;
-      _codeSent     = false;
-      notifyListeners();
+      await ApiService().init();
+      final res = await ApiService().post('/auth/verify-otp', data: {
+        'phone': _phoneForOtp,
+        'code':  smsCode,
+      });
+      _verifyToken = res.data['verifyToken'] as String?;
+      _verifiedPhoneForRegister = res.data['verifiedPhone'] as String?;
+      _codeSent = false;
       return true;
-    } on FirebaseAuthException catch (e) {
-      _errorMessage = e.message ?? 'الكود غلط أو انتهت صلاحيته';
-      _isLoading    = false;
-      notifyListeners();
+    } on ApiException catch (e) {
+      _errorMessage = e.message;
       return false;
+    } catch (e) {
+      _errorMessage = 'فشل الاتصال بالخادم';
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
-  /// الرقم المتحقَّق منه في session التسجيل (null لو لسه ما تحقّقش)
-  String? get verifiedPhoneForRegister => _verifiedPhoneForRegister;
+  /// الرقم اللي بنعمل له OTP دلوقتي (يُضبط قبل sendOtp)
+  String? _phoneForOtp;
+  set phoneForOtp(String? v) => _phoneForOtp = v;
 
   /// إلغاء session التسجيل (لو العميل رجع أو قفل الصفحة)
   void cancelRegistration() {
     _verifiedPhoneForRegister = null;
-    _verificationId           = null;
-    _resendToken               = null;
+    _verifyToken              = null;
     _codeSent                  = false;
     _errorMessage              = null;
+    _phoneForOtp               = null;
     notifyListeners();
   }
 
   // ─────────────────────────────────────────
-  // ✅ جديد ─ Helper: Firebase Sign-in → Backend Token
-  // ─────────────────────────────────────────
-  Future<bool> _signInWithCredential(PhoneAuthCredential credential) async {
-    try {
-      final userCred = await _firebaseAuth.signInWithCredential(credential);
-      final idToken  = await userCred.user!.getIdToken();
-
-      // بعت Firebase Token للـ backend عشان يرجعلنا app token
-      await ApiService().init();
-      final res   = await ApiService().post('/auth/firebase-login', data: {
-        'firebase_token': idToken,
-      });
-
-      final user  = res.data['user'] as Map<String, dynamic>;
-      final token = res.data['token'] as String;
-
-      await ApiService().setToken(token);
-
-      _name       = user['name']  as String?;
-      _phone      = user['phone'] as String?;
-      _email      = user['email'] as String?;
-      _isLoggedIn = true;
-      _codeSent   = false;
-      await _persist();
-
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } on ApiException catch (e) {
-      _errorMessage = e.message;
-      _isLoading    = false;
-      notifyListeners();
-      return false;
-    } catch (e) {
-      _errorMessage = 'فشل الاتصال بالخادم';
-      _isLoading    = false;
-      notifyListeners();
-      return false;
-    }
-  }
-
-  // ─────────────────────────────────────────
-  // الدوال الموجودة ─ مش اتغيرت
+  // تسجيل الدخول (برقم/إيميل + كلمة مرور)
   // ─────────────────────────────────────────
   Future<bool> login(String phoneOrEmail, String password) async {
     _isLoading    = true;
@@ -273,12 +183,128 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // ─────────────────────────────────────────
+  // تسجيل الدخول بجوجل
+  // بيرجع false من غير errorMessage لو المستخدم لغى العملية بنفسه
+  // ─────────────────────────────────────────
+  Future<bool> loginWithGoogle() async {
+    _isLoading    = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        // المستخدم لغى تسجيل الدخول من نافذة جوجل
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final idToken = googleAuth.idToken;
+      if (idToken == null) {
+        throw Exception('لم يتم الحصول على idToken من جوجل');
+      }
+
+      await ApiService().init();
+      final res   = await ApiService().post('/auth/google', data: {'idToken': idToken});
+      final user  = res.data['user']  as Map<String, dynamic>;
+      final token = res.data['token'] as String;
+
+      await ApiService().setToken(token);
+
+      _name       = user['name']  as String?;
+      _phone      = user['phone'] as String?;
+      _email      = user['email'] as String?;
+      _isLoggedIn = true;
+      await _persist();
+
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } on ApiException catch (e) {
+      _errorMessage = e.message;
+      _isLoading    = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _errorMessage = 'فشل تسجيل الدخول بجوجل';
+      _isLoading    = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // ─────────────────────────────────────────
+  // تسجيل الدخول بفيسبوك
+  // بيرجع false من غير errorMessage لو المستخدم لغى العملية بنفسه
+  // ─────────────────────────────────────────
+  Future<bool> loginWithFacebook() async {
+    _isLoading    = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final result = await FacebookAuth.instance.login(
+        permissions: ['email', 'public_profile'],
+      );
+
+      if (result.status == LoginStatus.cancelled) {
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+      if (result.status != LoginStatus.success) {
+        throw Exception(result.message ?? 'فشل تسجيل الدخول بفيسبوك');
+      }
+
+      final accessToken = result.accessToken!.tokenString;
+
+      await ApiService().init();
+      final res   = await ApiService().post('/auth/facebook', data: {'accessToken': accessToken});
+      final user  = res.data['user']  as Map<String, dynamic>;
+      final token = res.data['token'] as String;
+
+      await ApiService().setToken(token);
+
+      _name       = user['name']  as String?;
+      _phone      = user['phone'] as String?;
+      _email      = user['email'] as String?;
+      _isLoggedIn = true;
+      await _persist();
+
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } on ApiException catch (e) {
+      _errorMessage = e.message;
+      _isLoading    = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _errorMessage = 'فشل تسجيل الدخول بفيسبوك';
+      _isLoading    = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // ─────────────────────────────────────────
+  // إنشاء حساب — يتطلب verifyToken (من خطوة OTP)
+  // ─────────────────────────────────────────
   Future<bool> register({
     required String name,
     required String phone,
     required String email,
     required String password,
   }) async {
+    if (_verifyToken == null) {
+      _errorMessage = 'لازم تتأكد من رقمك عبر كود التحقق الأول';
+      notifyListeners();
+      return false;
+    }
+
     _isLoading    = true;
     _errorMessage = null;
     notifyListeners();
@@ -286,10 +312,11 @@ class AuthProvider extends ChangeNotifier {
     try {
       await ApiService().init();
       final res   = await ApiService().post('/auth/register', data: {
-        'name':     name.trim(),
-        'email':    email.trim().toLowerCase(),
-        'phone':    phone.trim(),
-        'password': password,
+        'name':         name.trim(),
+        'email':        email.trim().toLowerCase(),
+        'phone':        phone.trim(),
+        'password':     password,
+        'verifyToken':  _verifyToken,
       });
       final user  = res.data['user']  as Map<String, dynamic>;
       final token = res.data['token'] as String;
@@ -300,6 +327,13 @@ class AuthProvider extends ChangeNotifier {
       _phone      = user['phone'] as String?;
       _email      = user['email'] as String?;
       _isLoggedIn = true;
+
+      // مسح بيانات OTP بعد نجاح التسجيل
+      _verifyToken = null;
+      _verifiedPhoneForRegister = null;
+      _codeSent = false;
+      _phoneForOtp = null;
+
       await _persist();
 
       _isLoading = false;
@@ -323,7 +357,9 @@ class AuthProvider extends ChangeNotifier {
       await ApiService().init();
       await ApiService().post('/auth/logout');
     } catch (_) {}
-    await _firebaseAuth.signOut(); // ✅ جديد ─ نسجل خروج من Firebase كمان
+    // تسجيل الخروج من جوجل/فيسبوك كمان لو المستخدم داخل بيهم
+    try { await _googleSignIn.signOut(); } catch (_) {}
+    try { await FacebookAuth.instance.logOut(); } catch (_) {}
     await ApiService().clearToken();
     await _clearSession();
     notifyListeners();

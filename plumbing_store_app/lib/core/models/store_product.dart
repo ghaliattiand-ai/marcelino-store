@@ -53,6 +53,7 @@ class StoreCategory {
   final IconData icon;
   final Color color;
   final String description;
+  final String? imageUrl;
 
   const StoreCategory({
     required this.id,
@@ -60,5 +61,6 @@ class StoreCategory {
     required this.icon,
     required this.color,
     required this.description,
+    this.imageUrl,
   });
 }

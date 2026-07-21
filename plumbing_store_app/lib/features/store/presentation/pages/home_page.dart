@@ -67,6 +67,23 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       _selectedCategoryId = widget.initialCategoryId;
     }
     _loadMoreProducts();
+    // نجيب أحدث الأقسام/المنتجات من السيرفر أول ما تفتح الهوم
+    // عشان أي تعديلات الأدمن (زي تغيير أيقونة قسم) تظهر فوراً
+    _refreshFromServer();
+  }
+
+  // يجلب أحدث البيانات من السيرفر ويعمل rebuild بالبيانات الجديدة
+  Future<void> _refreshFromServer() async {
+    try {
+      await StoreApiService().refresh();
+      if (!mounted) return;
+      // نعيد تحميل المنتجات المعروضة بالبيانات الجديدة
+      _displayedProducts.clear();
+      _currentPage = 0;
+      _hasMore = true;
+      _loadMoreProducts();
+      setState(() {});
+    } catch (_) {}
   }
 
   @override
@@ -163,25 +180,29 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       child: Scaffold(
         backgroundColor: _bg,
         appBar: _buildAppBar(),
-        body: SingleChildScrollView(
-          controller: _scrollController,
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSearchBar(),
-              if (StoreApiService().banners.isNotEmpty)
-                BannerCarousel(banners: StoreApiService().banners)
-              else
-                _buildHeroBanner(),
-              const SizedBox(height: 10),
-              _buildCategoriesSection(),
-              const SizedBox(height: 10),
-              _buildFeaturedSection(),
-              const SizedBox(height: 10),
-              _buildProductsSection(),
-              const SizedBox(height: 20),
-            ],
+        body: RefreshIndicator(
+          color: _orange,
+          onRefresh: _refreshFromServer,
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSearchBar(),
+                if (StoreApiService().banners.isNotEmpty)
+                  BannerCarousel(banners: StoreApiService().banners)
+                else
+                  _buildHeroBanner(),
+                const SizedBox(height: 10),
+                _buildCategoriesSection(),
+                const SizedBox(height: 10),
+                _buildFeaturedSection(),
+                const SizedBox(height: 10),
+                _buildProductsSection(),
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
         ),
       ),
@@ -491,11 +512,24 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       width: isSelected ? 2 : 1,
                     ),
                   ),
-                  child: Icon(
-                    c.icon,
-                    color: isSelected ? Colors.white : c.color,
-                    size: 27,
-                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: (c.imageUrl != null && c.imageUrl!.isNotEmpty)
+                      ? Image.network(
+                          c.imageUrl!,
+                          fit: BoxFit.cover,
+                          width: 58,
+                          height: 58,
+                          errorBuilder: (_, __, ___) => Icon(
+                            c.icon,
+                            color: isSelected ? Colors.white : c.color,
+                            size: 27,
+                          ),
+                        )
+                      : Icon(
+                          c.icon,
+                          color: isSelected ? Colors.white : c.color,
+                          size: 27,
+                        ),
                 ),
                 const SizedBox(height: 6),
                 Text(

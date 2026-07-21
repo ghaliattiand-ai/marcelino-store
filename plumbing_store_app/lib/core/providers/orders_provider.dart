@@ -14,87 +14,8 @@ class OrdersProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   OrdersProvider() {
-    _seedDemoOrders();
-  }
-
-  // بيانات تجريبية للحالات اللي السيرفر مش شغال
-  void _seedDemoOrders() {
-    _orders.addAll([
-      StoreOrder(
-        id: '1256',
-        date: DateTime(2024, 6, 18),
-        status: OrderStatus.delivered,
-        subtotal: 2770,
-        shipping: 30,
-        total: 2800,
-        customerName: 'أحمد محمد',
-        customerPhone: '01012345678',
-        items: const [
-          OrderLineItem(
-            productId: 'p1',
-            name: 'مضخة ماء أوتوماتيك 1 حصان',
-            price: 1250,
-            quantity: 1,
-            icon: Icons.water_drop,
-            color: Color(0xFF1565C0),
-          ),
-          OrderLineItem(
-            productId: 'p3',
-            name: 'دريل شحن 21 فولت',
-            price: 1100,
-            quantity: 1,
-            icon: Icons.handyman,
-            color: Color(0xFF6A1B9A),
-          ),
-          OrderLineItem(
-            productId: 'p10',
-            name: 'لمبة LED 15 وات',
-            price: 25,
-            quantity: 2,
-            icon: Icons.flash_on,
-            color: Color(0xFFF57F17),
-          ),
-        ],
-      ),
-      StoreOrder(
-        id: '1257',
-        date: DateTime(2024, 6, 22),
-        status: OrderStatus.processing,
-        subtotal: 1020,
-        shipping: 30,
-        discount: 120,
-        couponCode: 'SAMEH50',
-        total: 930,
-        customerName: 'سارة علي',
-        customerPhone: '01123456789',
-        items: const [
-          OrderLineItem(
-            productId: 'p2',
-            name: 'خلاط حوض ستانلس',
-            price: 650,
-            quantity: 1,
-            icon: Icons.water_drop,
-            color: Color(0xFF1565C0),
-          ),
-          OrderLineItem(
-            productId: 'p9',
-            name: 'صنبور مطبخ ستانلس',
-            price: 250,
-            quantity: 1,
-            icon: Icons.water_drop,
-            color: Color(0xFF1565C0),
-          ),
-          OrderLineItem(
-            productId: 'p12',
-            name: 'بوية بيضاء 5 لتر',
-            price: 120,
-            quantity: 1,
-            icon: Icons.format_paint,
-            color: Color(0xFF2E7D32),
-          ),
-        ],
-      ),
-    ]);
+    // لا نضع طلبات تجريبية — القائمة تبدأ فاضية حتى نجلب من الـ API
+    loadOrders();
   }
 
   // تحميل الطلبات من الـ API

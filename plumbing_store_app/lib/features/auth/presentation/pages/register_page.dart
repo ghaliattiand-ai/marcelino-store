@@ -2,16 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:plumbing_store_app/core/providers/auth_provider.dart';
+import 'package:plumbing_store_app/core/widgets/marcelino_mascot.dart';
 
-const _navy = Color(0xFF0D1B3E);
-const _navyL = Color(0xFF152040);
+const _navy   = Color(0xFF0D1B3E);
+const _navyL  = Color(0xFF152040);
 const _orange = Color(0xFFFF6B00);
-const _bg = Color(0xFFF2F3F7);
+const _bg     = Color(0xFFF2F3F7);
 
-/// صفحة إنشاء حساب - 3 خطوات:
+/// صفحة إنشاء حساب - 3 خطوات (التحقق عبر SMS Misr):
 /// 1) رقم التليفون ← إرسال OTP
-/// 2) كود OTP ← تأكيد
+/// 2) كود OTP ← تأكيد (يحصل verifyToken)
 /// 3) الاسم + الإيميل + كلمة السر + تأكيدها ← إنشاء الحساب
+///
+/// الماسكوت يعكس حالة الفورم: يراقب الكتابة، يغطي عينيه عند كلمة المرور،
+/// يفكّر أثناء الطلبات، يفرح عند النجاح، ويزعل عند الخطأ.
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
 
@@ -20,38 +24,122 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  // ── المتحكمات ──
-  final _phoneController = TextEditingController();
-  final _otpController = TextEditingController();
-  final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
+  // ── المتحكمات ──────────────────────────────────
+  final _phoneController    = TextEditingController();
+  final _otpController      = TextEditingController();
+  final _nameController     = TextEditingController();
+  final _emailController    = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmController = TextEditingController();
+  final _confirmController  = TextEditingController();
 
-  bool _obscurePass = true;
+  // ── FocusNodes (لخطوة البيانات — تأثير shy على الماسكوت) ──
+  final _nameFocus     = FocusNode();
+  final _emailFocus    = FocusNode();
+  final _passwordFocus = FocusNode();
+  final _confirmFocus  = FocusNode();
+
+  bool _obscurePass    = true;
   bool _obscureConfirm = true;
-  bool _acceptTerms = false;
+  bool _acceptTerms    = false;
   String? _error;
 
   /// 0 = رقم، 1 = OTP، 2 = بيانات الحساب
   int _step = 0;
-  String _verifiedPhone = '';
+  MascotState _mascotState = MascotState.idle;
+
+  /// الماسكوت مشغول ← الزرار يتعطّل
+  bool get _isBusy =>
+      _mascotState == MascotState.thinking ||
+      _mascotState == MascotState.happy    ||
+      _mascotState == MascotState.angry;
+
+  // مرجع للـ AuthProvider عشان نسمع تغييراته (codeSent / errorMessage)
+  AuthProvider? _authRef;
+
+  // ─────────────────────────────────────────────────
+  @override
+  void initState() {
+    super.initState();
+    for (final node in [_nameFocus, _emailFocus, _passwordFocus, _confirmFocus]) {
+      node.addListener(_onFocusChange);
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_authRef == null) {
+      _authRef = context.read<AuthProvider>();
+      _authRef!.addListener(_onAuthChanged);
+    }
+  }
+
+  /// لما الـ AuthProvider يتغيّر (codeSent أو errorMessage) — نحرّك الـ UI تلقائياً
+  void _onAuthChanged() {
+    if (!mounted) return;
+    final auth = _authRef;
+    if (auth == null) return;
+
+    // لو الكود اتبعت بنجاح → انتقل لخطوة OTP
+    if (auth.codeSent && _step == 0) {
+      setState(() {
+        _step = 1;
+        _error = null;
+        _mascotState = MascotState.idle;
+      });
+      return;
+    }
+    // لو فيه خطأ أثناء إرسال الكود → الماسكوت يزعل
+    if (auth.errorMessage != null && auth.errorMessage!.isNotEmpty && _step == 0) {
+      setState(() {
+        _error = auth.errorMessage;
+        _mascotState = MascotState.angry;
+      });
+      _resetMascotAfterDelay();
+    }
+  }
+
+  void _onFocusChange() {
+    if (_isBusy || _step != 2) return; // تأثير الـ focus بس في خطوة البيانات
+    if (_passwordFocus.hasFocus || _confirmFocus.hasFocus) {
+      setState(() => _mascotState = MascotState.shy);
+    } else if (_nameFocus.hasFocus || _emailFocus.hasFocus) {
+      setState(() => _mascotState = MascotState.watching);
+    } else {
+      setState(() => _mascotState = MascotState.idle);
+    }
+  }
+
+  /// يرجّع الماسكوت لـ idle بعد فترة قصيرة (بعد happy/angry)
+  void _resetMascotAfterDelay() {
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted && (_mascotState == MascotState.angry || _mascotState == MascotState.happy)) {
+        setState(() => _mascotState = MascotState.idle);
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _authRef?.removeListener(_onAuthChanged);
     _phoneController.dispose();
     _otpController.dispose();
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmController.dispose();
+    _nameFocus.dispose();
+    _emailFocus.dispose();
+    _passwordFocus.dispose();
+    _confirmFocus.dispose();
     super.dispose();
   }
 
+  // ─────────────────────────────────────────────────
   String _formatE164(String raw) {
     final clean = raw.replaceAll(RegExp(r'[^\d]'), '');
     if (clean.startsWith('20')) return '+$clean';
-    if (clean.startsWith('0')) return '+2$clean';
+    if (clean.startsWith('0'))  return '+2$clean';
     return '+20$clean';
   }
 
@@ -59,19 +147,28 @@ class _RegisterPageState extends State<RegisterPage> {
   Future<void> _sendOtp() async {
     final raw = _phoneController.text.trim();
     if (raw.length < 10) {
-      setState(() => _error = 'اكتب رقم تليفون صحيح (11 رقم)');
+      setState(() {
+        _error = 'اكتب رقم تليفون صحيح (11 رقم)';
+        _mascotState = MascotState.angry;
+      });
+      _resetMascotAfterDelay();
       return;
     }
-    setState(() => _error = null);
+    setState(() {
+      _error = null;
+      _mascotState = MascotState.thinking;
+    });
     final auth = context.read<AuthProvider>();
+    auth.clearError();
     final e164 = _formatE164(raw);
+    auth.phoneForOtp = e164;
     await auth.sendOtp(e164);
-
+    // الـ listener (_onAuthChanged) هيهندل الانتقال لخطوة OTP لما codeSent تبقى true
+    // أو عرض الخطأ لو فشل
     if (!mounted) return;
-    if (auth.errorMessage != null) {
-      setState(() => _error = auth.errorMessage);
-    } else if (auth.codeSent) {
-      setState(() => _step = 1);
+    if (!auth.codeSent) {
+      setState(() => _mascotState = MascotState.angry);
+      _resetMascotAfterDelay();
     }
   }
 
@@ -79,72 +176,106 @@ class _RegisterPageState extends State<RegisterPage> {
   Future<void> _verifyOtp() async {
     final code = _otpController.text.trim();
     if (code.length != 6) {
-      setState(() => _error = 'الكود لازم يكون 6 أرقام');
+      setState(() {
+        _error = 'الكود لازم يكون 6 أرقام';
+        _mascotState = MascotState.angry;
+      });
+      _resetMascotAfterDelay();
       return;
     }
-    setState(() => _error = null);
+    setState(() {
+      _error = null;
+      _mascotState = MascotState.thinking;
+    });
     final auth = context.read<AuthProvider>();
     final ok = await auth.verifyOtpForRegister(code);
 
     if (!mounted) return;
     if (ok) {
+      // الماسكوت يفرح ثم ننتقل لخطوة البيانات
+      setState(() => _mascotState = MascotState.happy);
+      await Future.delayed(const Duration(milliseconds: 1100));
+      if (!mounted) return;
       setState(() {
-        _verifiedPhone = auth.verifiedPhoneForRegister ?? _formatE164(_phoneController.text.trim());
         _step = 2;
+        _mascotState = MascotState.idle;
       });
     } else {
-      setState(() => _error = auth.errorMessage ?? 'الكود غلط أو انتهت صلاحيته');
+      setState(() {
+        _error = auth.errorMessage ?? 'الكود غلط أو انتهت صلاحيته';
+        _mascotState = MascotState.angry;
+      });
+      _resetMascotAfterDelay();
     }
   }
 
   // ── خطوة 3: إنشاء الحساب ──
   Future<void> _finishRegister() async {
-    final name = _nameController.text.trim();
-    final email = _emailController.text.trim();
-    final pass = _passwordController.text;
-    final confirm = _confirmController.text;
+    final name     = _nameController.text.trim();
+    final email    = _emailController.text.trim();
+    final pass     = _passwordController.text;
+    final confirm  = _confirmController.text;
 
+    // ── Validation ────────────────────────────────
+    String? validationError;
     if (name.length < 3) {
-      setState(() => _error = 'اكتب اسمك بالكامل');
-      return;
+      validationError = 'اكتب اسمك بالكامل';
+    } else if (!email.contains('@') || !email.contains('.')) {
+      validationError = 'بريد إلكتروني غير صالح';
+    } else if (pass.length < 6) {
+      validationError = 'كلمة المرور لازم 6 أحرف على الأقل';
+    } else if (pass != confirm) {
+      validationError = 'كلمتا المرور غير متطابقتين';
+    } else if (!_acceptTerms) {
+      validationError = 'لازم توافق على الشروط والأحكام';
     }
-    if (!email.contains('@') || !email.contains('.')) {
-      setState(() => _error = 'بريد إلكتروني غير صالح');
-      return;
-    }
-    if (pass.length < 6) {
-      setState(() => _error = 'كلمة المرور لازم 6 أحرف على الأقل');
-      return;
-    }
-    if (pass != confirm) {
-      setState(() => _error = 'كلمتا المرور غير متطابقتين');
-      return;
-    }
-    if (!_acceptTerms) {
-      setState(() => _error = 'لازم توافق على الشروط والأحكام');
+
+    if (validationError != null) {
+      setState(() {
+        _error = validationError;
+        _mascotState = MascotState.angry;
+      });
+      _resetMascotAfterDelay();
       return;
     }
 
-    setState(() => _error = null);
+    setState(() {
+      _error = null;
+      _mascotState = MascotState.thinking;
+    });
+
     final auth = context.read<AuthProvider>();
+    final verifiedPhone = auth.verifiedPhoneForRegister ??
+        _formatE164(_phoneController.text.trim());
     final ok = await auth.register(
-      name: name,
-      phone: _verifiedPhone.isEmpty ? _formatE164(_phoneController.text.trim()) : _verifiedPhone,
-      email: email,
+      name:     name,
+      phone:    verifiedPhone,
+      email:    email,
       password: pass,
     );
 
     if (!mounted) return;
+
     if (ok) {
+      // ✅ نجاح — الماسكوت يفرح ثم ننتقل
+      setState(() => _mascotState = MascotState.happy);
+      await Future.delayed(const Duration(milliseconds: 1300));
+      if (!mounted) return;
       Navigator.popUntil(context, (route) => route.isFirst);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم إنشاء الحساب بنجاح 🎉')),
       );
     } else {
-      setState(() => _error = auth.errorMessage ?? 'حصل خطأ، حاول تاني');
+      setState(() {
+        _error = auth.errorMessage ?? 'حصل خطأ، حاول تاني';
+        _mascotState = MascotState.angry;
+      });
+      _resetMascotAfterDelay();
     }
   }
 
+  // ─────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -156,10 +287,10 @@ class _RegisterPageState extends State<RegisterPage> {
         body: SafeArea(
           child: Column(
             children: [
-              // ===== الترويسة + مؤشر الخطوات =====
+              // ── الترويسة + الماسكوت + مؤشر الخطوات ──
               _buildHeader(),
 
-              // ===== المحتوى =====
+              // ── المحتوى ────────────────────────────
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -186,7 +317,7 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  // ===== الترويسة مع مؤشر الخطوات =====
+  // ── الترويسة مع الماسكوت ومؤشر الخطوات ──────────────
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
@@ -209,13 +340,17 @@ class _RegisterPageState extends State<RegisterPage> {
                   onPressed: () {
                     final auth = context.read<AuthProvider>();
                     if (_step == 2) {
-                      setState(() => _step = 1);
+                      setState(() {
+                        _step = 1;
+                        _mascotState = MascotState.idle;
+                      });
                     } else if (_step == 1) {
                       auth.cancelRegistration();
                       _otpController.clear();
                       setState(() {
                         _step = 0;
                         _error = null;
+                        _mascotState = MascotState.idle;
                       });
                     }
                   },
@@ -236,7 +371,24 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 8),
+          Text(
+            _step == 0
+                ? 'هنبعتلك كود تحقق على رقمك'
+                : _step == 1
+                    ? 'اكتب الكود اللي وصلك'
+                    : 'آخر خطوة — كمّل بياناتك',
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13),
+          ),
+          const SizedBox(height: 12),
+          // ── الماسكوت يعكس حالة الفورم ──────────────
+          Center(
+            child: MarcelinoMascot(
+              state: _mascotState,
+              size: 100,
+            ),
+          ),
+          const SizedBox(height: 12),
           // مؤشر الخطوات (3 دوائر)
           Row(
             children: List.generate(3, (i) {
@@ -285,15 +437,6 @@ class _RegisterPageState extends State<RegisterPage> {
               );
             }),
           ),
-          const SizedBox(height: 12),
-          Text(
-            _step == 0
-                ? 'هنبعتلك كود تحقق على رقمك'
-                : _step == 1
-                    ? 'اكتب الكود اللي وصلك'
-                    : 'آخر خطوة — كمّل بياناتك',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13),
-          ),
         ],
       ),
     );
@@ -307,7 +450,7 @@ class _RegisterPageState extends State<RegisterPage> {
           key: const ValueKey(0),
           controller: _phoneController,
           error: _error,
-          isLoading: auth.isLoading,
+          isLoading: auth.isLoading || _isBusy,
           onSend: _sendOtp,
         );
       case 1:
@@ -316,7 +459,7 @@ class _RegisterPageState extends State<RegisterPage> {
           phoneController: _phoneController,
           otpController: _otpController,
           error: _error,
-          isLoading: auth.isLoading,
+          isLoading: auth.isLoading || _isBusy,
           onVerify: _verifyOtp,
           onResend: _sendOtp,
         );
@@ -327,14 +470,17 @@ class _RegisterPageState extends State<RegisterPage> {
           emailController: _emailController,
           passwordController: _passwordController,
           confirmController: _confirmController,
+          nameFocus: _nameFocus,
+          emailFocus: _emailFocus,
+          passwordFocus: _passwordFocus,
+          confirmFocus: _confirmFocus,
           obscurePass: _obscurePass,
           obscureConfirm: _obscureConfirm,
           acceptTerms: _acceptTerms,
-          verifiedPhone: _verifiedPhone.isEmpty
-              ? _formatE164(_phoneController.text.trim())
-              : _verifiedPhone,
+          verifiedPhone: auth.verifiedPhoneForRegister ??
+              _formatE164(_phoneController.text.trim()),
           error: _error,
-          isLoading: auth.isLoading,
+          isLoading: auth.isLoading || _isBusy,
           onTogglePass: () => setState(() => _obscurePass = !_obscurePass),
           onToggleConfirm: () => setState(() => _obscureConfirm = !_obscureConfirm),
           onToggleTerms: () => setState(() => _acceptTerms = !_acceptTerms),
@@ -367,7 +513,6 @@ class _PhoneStep extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 8),
-        // أيقونة + شرح
         Center(
           child: Column(
             children: [
@@ -395,7 +540,6 @@ class _PhoneStep extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 24),
-        // الحقل
         TextField(
           controller: controller,
           keyboardType: TextInputType.phone,
@@ -576,6 +720,10 @@ class _DetailsStep extends StatelessWidget {
     required this.emailController,
     required this.passwordController,
     required this.confirmController,
+    required this.nameFocus,
+    required this.emailFocus,
+    required this.passwordFocus,
+    required this.confirmFocus,
     required this.obscurePass,
     required this.obscureConfirm,
     required this.acceptTerms,
@@ -592,6 +740,10 @@ class _DetailsStep extends StatelessWidget {
   final TextEditingController emailController;
   final TextEditingController passwordController;
   final TextEditingController confirmController;
+  final FocusNode nameFocus;
+  final FocusNode emailFocus;
+  final FocusNode passwordFocus;
+  final FocusNode confirmFocus;
   final bool obscurePass;
   final bool obscureConfirm;
   final bool acceptTerms;
@@ -646,24 +798,27 @@ class _DetailsStep extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 20),
-        // الاسم
+        // الاسم (watching)
         TextField(
           controller: nameController,
+          focusNode: nameFocus,
           textInputAction: TextInputAction.next,
           decoration: _inputDecoration('الاسم الكامل', Icons.person_outline),
         ),
         const SizedBox(height: 14),
-        // الإيميل
+        // الإيميل (watching)
         TextField(
           controller: emailController,
+          focusNode: emailFocus,
           keyboardType: TextInputType.emailAddress,
           textInputAction: TextInputAction.next,
           decoration: _inputDecoration('البريد الإلكتروني', Icons.email_outlined),
         ),
         const SizedBox(height: 14),
-        // كلمة المرور
+        // كلمة المرور (shy)
         TextField(
           controller: passwordController,
+          focusNode: passwordFocus,
           obscureText: obscurePass,
           textInputAction: TextInputAction.next,
           decoration: _inputDecoration('كلمة المرور', Icons.lock_outline).copyWith(
@@ -674,9 +829,10 @@ class _DetailsStep extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 14),
-        // تأكيد كلمة المرور
+        // تأكيد كلمة المرور (shy)
         TextField(
           controller: confirmController,
+          focusNode: confirmFocus,
           obscureText: obscureConfirm,
           textInputAction: TextInputAction.done,
           decoration: _inputDecoration('تأكيد كلمة المرور', Icons.lock_outline).copyWith(

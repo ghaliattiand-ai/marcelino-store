@@ -74,6 +74,11 @@ class _MainLayoutState extends State<MainLayout> {
               ),
           ],
         ),
+        // زر السلة العائم القابل للتحريك — ظاهر في كل الصفحات
+        floatingActionButton: _DraggableCartFab(
+          onTap: () => nav.goToTab(3),
+        ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
         bottomNavigationBar: Container(
           decoration: BoxDecoration(
             color: t.card,
@@ -336,6 +341,111 @@ class _MainLayoutState extends State<MainLayout> {
         style: TextStyle(color: color ?? t.textPrimary, fontSize: 14, fontWeight: FontWeight.w500),
       ),
       onTap: onTap,
+    );
+  }
+}
+
+// ===== زر السلة العائم القابل للتحريك (FAB) =====
+// بيظهر فوق كل الصفحات، والعميل يقدر يسحبه لأي مكان في الشاشة
+class _DraggableCartFab extends StatefulWidget {
+  final VoidCallback onTap;
+  const _DraggableCartFab({required this.onTap});
+
+  @override
+  State<_DraggableCartFab> createState() => _DraggableCartFabState();
+}
+
+class _DraggableCartFabState extends State<_DraggableCartFab> {
+  Offset _position = const Offset(-1, -1); // -1 يعني "استخدم الافتراضي"
+  bool _initialized = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cartCount = context.watch<CartProvider>().totalItems;
+    final size = MediaQuery.of(context).size;
+    const fabSize = 56.0;
+
+    // أول مرة بنحدد الموقع الافتراضي: فوق الـ bottom nav على الشمال
+    if (!_initialized) {
+      _position = Offset(20, size.height - fabSize - 140);
+      _initialized = true;
+    }
+
+    // نتأكد إن الـ FAB داخل حدود الشاشة
+    double left = _position.dx.clamp(8.0, size.width - fabSize - 8);
+    double top = _position.dy.clamp(80.0, size.height - fabSize - 90);
+
+    return Stack(
+      children: [
+        Positioned(
+          left: left,
+          top: top,
+          child: GestureDetector(
+            onTap: widget.onTap,
+            onPanUpdate: (details) {
+              setState(() {
+                _position = Offset(
+                  _position.dx + details.delta.dx,
+                  _position.dy + details.delta.dy,
+                );
+              });
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: fabSize,
+              height: fabSize,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppTheme.orange, AppTheme.orangeLight],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.orange.withValues(alpha: 0.4),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // الأيقونة
+                  const Icon(Icons.shopping_cart, color: Colors.white, size: 26),
+                  // عدّاد السلة (لو فيه منتجات)
+                  if (cartCount > 0)
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: AppTheme.navy,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        child: Text(
+                          '$cartCount',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

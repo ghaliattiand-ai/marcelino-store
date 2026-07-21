@@ -9,8 +9,21 @@ import '../../../../core/widgets/page_transitions.dart';
 const _navy = Color(0xFF0D1B3E);
 const _orange = Color(0xFFFF6B00);
 
-class CategoriesPage extends StatelessWidget {
+class CategoriesPage extends StatefulWidget {
   const CategoriesPage({super.key});
+
+  @override
+  State<CategoriesPage> createState() => _CategoriesPageState();
+}
+
+class _CategoriesPageState extends State<CategoriesPage> {
+  // يجيب أحدث الأقسام من السيرفر ويعمل rebuild
+  Future<void> _refreshCategories() async {
+    try {
+      await StoreApiService().refresh();
+    } catch (_) {}
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,52 +42,56 @@ class CategoriesPage extends StatelessWidget {
           foregroundColor: Colors.white,
           elevation: 0,
         ),
-        body: ListView(
-          padding: const EdgeInsets.all(14),
-          children: [
-            Container(
-              height: 46,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    AppTransitions.scale(const SearchPage()),
-                  );
-                },
-                child: Row(
-                  children: [
-                    Container(
-                      margin: const EdgeInsets.all(7),
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      decoration: BoxDecoration(
-                        color: _navy,
-                        borderRadius: BorderRadius.circular(8),
+        body: RefreshIndicator(
+          color: _orange,
+          onRefresh: _refreshCategories,
+          child: ListView(
+            padding: const EdgeInsets.all(14),
+            children: [
+              Container(
+                height: 46,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      AppTransitions.scale(const SearchPage()),
+                    );
+                  },
+                  child: Row(
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.all(7),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        decoration: BoxDecoration(
+                          color: _navy,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.search, color: Colors.white, size: 18),
                       ),
-                      child: const Icon(Icons.search, color: Colors.white, size: 18),
-                    ),
-                    Expanded(
-                      child: Text(
-                        'ابحث في الأقسام...',
-                        style: TextStyle(color: Colors.grey[400], fontSize: 13.5),
+                      Expanded(
+                        child: Text(
+                          'ابحث في الأقسام...',
+                          style: TextStyle(color: Colors.grey[400], fontSize: 13.5),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            ...categories.map((category) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _CategoryCard(category: category),
-              );
-            }),
-          ],
+              const SizedBox(height: 16),
+              ...categories.map((category) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _CategoryCard(category: category),
+                );
+              }),
+            ],
+          ),
         ),
       ),
     );
@@ -111,23 +128,36 @@ class _CategoryCard extends StatelessWidget {
             )),
           );
         },
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.withValues(alpha: 0.12)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: category.color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.12)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: category.color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: category.imageUrl != null && category.imageUrl!.isNotEmpty
+                      ? Image.network(
+                          category.imageUrl!,
+                          fit: BoxFit.cover,
+                          width: 72,
+                          height: 72,
+                          errorBuilder: (_, __, ___) => Icon(
+                            category.icon,
+                            color: category.color,
+                            size: 36,
+                          ),
+                        )
+                      : Icon(category.icon, color: category.color, size: 36),
                 ),
-                child: Icon(category.icon, color: category.color, size: 36),
-              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(

@@ -136,12 +136,17 @@ class StoreApiService {
     return jsonList.map((j) {
       final icon = _mapIcon(j['icon'] as String? ?? 'category');
       final color = _mapColor(j['color'] as String? ?? '#1565C0');
+      final rawImage = j['imageUrl'] as String?;
+      final imageUrl = (rawImage != null && rawImage.isNotEmpty)
+          ? _resolveUrl(rawImage)
+          : null;
       return StoreCategory(
         id: j['_id'] as String,
         label: j['nameAr'] as String,
         icon: icon,
         color: color,
         description: j['description'] as String? ?? '',
+        imageUrl: imageUrl,
       );
     }).toList();
   }

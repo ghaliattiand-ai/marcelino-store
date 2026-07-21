@@ -35,6 +35,10 @@ dependencies:
   firebase_core: ^4.11.0
   firebase_auth: ^6.5.4
 
+  # تسجيل الدخول بجوجل وفيسبوك (بدون Firebase - التحقق بيتم في الباك اند بتاعنا)
+  google_sign_in: ^6.2.1
+  flutter_facebook_auth: ^7.1.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

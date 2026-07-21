@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_core/firebase_core.dart'; // ✅ جديد
 import 'package:plumbing_store_app/core/constants/app_constants.dart';
 import 'package:plumbing_store_app/core/theme/app_theme.dart';
 import 'package:plumbing_store_app/core/providers/cart_provider.dart';
@@ -19,10 +18,7 @@ import 'features/splash/presentation/pages/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-    await Firebase.initializeApp(); // ✅ جديد — لازم يكون أول حاجة
 
-  
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
@@ -35,6 +31,11 @@ void main() async {
   // ملاحظة: التطبيق مصمم ليعمل بالـ mock fallback لو فشل الاتصال — لا يُحجَم على الإطلاق
   await ApiService().init();
   await StoreApiService().init();
+
+  // 2.5) نجيب أحدث البيانات من السيرفر في كل إقلاع (في الخلفية) عشان
+  //      التطبيق يطّلع أي تعديلات الأدمن (زي تغيير أيقونة قسم) بدون إعادة بناء
+  //      fire-and-forget — لا نوقف الإقلاع لو السيرفر بطيء
+  StoreApiService().refresh().catchError((_) {});
 
   // 3) تتبع فتح التطبيق (fire-and-forget) — بدون أي خدمات طرف ثالث
   TrackingService().trackAppOpen();
