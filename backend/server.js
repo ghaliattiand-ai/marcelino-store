@@ -43,14 +43,14 @@ app.use(cors({
 // نرخّص بعض الهيدرز علشان لوحة التحكم (صور/سكربتات من نفس الأصل + Cloudinary + Google Fonts)
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }, // السماح بتحميل صور المنتجات من /uploads عبر الأصل
-  contentSecurityPolicy: {
+    contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      // لوحة التحكم vanilla JS — نسمح بالـ inline scripts/styles الموجودة في index.html
-      scriptSrc: ["'self'", "'unsafe-inline'", 'https://apis.google.com'],
+      scriptSrc: ["'self'", "'unsafe-inline'", 'https://apis.google.com', 'https://cdn.jsdelivr.net'],
+      scriptSrcAttr: ["'unsafe-inline'"],   // ← ده السطر الجديد: بيسمح بـ onclick
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
-      imgSrc: ["'self'", 'data:', 'https:'], // صور Cloudinary + data URIs + أي https
+      imgSrc: ["'self'", 'data:', 'https:'],
       connectSrc: ["'self'", 'https://api.openai.com', 'https://generativelanguage.googleapis.com'],
     },
   },
